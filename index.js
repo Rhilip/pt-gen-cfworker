@@ -1,6 +1,8 @@
 const cheerio = require("cheerio");
 
-// 主入口
+/**
+ * Cloudflare Worker entrypoint
+ */
 addEventListener("fetch", event => {
   event.respondWith(handle(event));
 });
@@ -38,7 +40,7 @@ const default_body = {
  */
 async function handle(event) {
   let request = event.request;  // 请求
-  
+
   // 检查缓存，命中则直接返回
   let cache = caches.default;  // 定义缓存
   let response = await cache.match(request);
@@ -50,7 +52,7 @@ async function handle(event) {
 
     // 请求字段 `&url=` 存在
     if (uri.searchParams.get("url")) {
-            let url_ = uri.searchParams.get("url");
+      let url_ = uri.searchParams.get("url");
       for (let site_ in support_list) {
         let pattern = support_list[site_];
         if (url_.match(pattern)) {
@@ -61,12 +63,12 @@ async function handle(event) {
         }
       }
     } else {
-            site = uri.searchParams.get("site");
+      site = uri.searchParams.get("site");
       sid = uri.searchParams.get("sid");
     }
 
     // 如果site和sid不存在的话，提前返回
-        if (site == null || sid == null) {
+    if (site == null || sid == null) {
       response = makeJsonResponse({ error: "Miss key of `site` or `sid` , or input unsupported resource link" });
     } else {
       if (site === "douban") {
@@ -86,7 +88,6 @@ async function handle(event) {
 
     }
 
-    
 
     // 添加缓存
     event.waitUntil(cache.put(request, response.clone()));
@@ -100,7 +101,10 @@ function makeJsonResponse(body_update) {
   let body = Object.assign({}, default_body, body_update);
   return new Response(JSON.stringify(body, null, 2), {
     status: 200,
-    headers: { "Content-Type": "application/json" }
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*"
+    }
   });
 }
 
@@ -125,11 +129,12 @@ function getDoubanApiKey() {
 // 各个资源站点的相应请求整理方法，统一使用async function
 
 async function gen_douban(sid) {
+  let data = { site: "douban", sid: sid };
   // 先处理douban上的imdb信息
   if (sid.startsWith("tt")) {
     let douban_imdb_api = await fetch(`https://api.douban.com/v2/movie/imdb/${sid}?apikey=${getDoubanApiKey()}`);
     let db_imdb_api_resp = await douban_imdb_api.json();
-        let new_url = db_imdb_api_resp.alt;
+    let new_url = db_imdb_api_resp.alt;
     if (new_url) {
       let new_group = new_url.match(support_list.douban);
       if (new_group && !new_group[1].startsWith("tt")) {
@@ -157,9 +162,9 @@ async function gen_douban(sid) {
 
   // 对异常进行处理
   if (douban_api_json.msg) {
-    return makeJsonResponse({ error: douban_api_json.msg });
+    return makeJsonResponse(Object.assign(data, { error: douban_api_json.msg }));
   } else if (douban_page_raw.match(/检测到有异常请求/)) {  // 真的会有这种可能吗？
-    return makeJsonResponse({ error: "GenHelp was temporary banned by Douban, Please wait." });
+    return makeJsonResponse(Object.assign(data, { error: "GenHelp was temporary banned by Douban, Please wait." }));
   } else {
     // 解析页面
     let $ = page_parser(douban_page_raw);
@@ -167,11 +172,8 @@ async function gen_douban(sid) {
     let title = $("title").text().replace("(豆瓣)", "").trim();
 
     if (title.match(/页面不存在/)) {
-      return makeJsonResponse({ error: "The corresponding resource does not exist." });  // FIXME 此时可能页面只是隐藏，而不是不存在，需要根据json信息进一步判断
+      return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));  // FIXME 此时可能页面只是隐藏，而不是不存在，需要根据json信息进一步判断
     }
-
-    // 所有检查完成，开始解析页面
-    let data = { success: true };
 
     // 元素获取方法
     let fetch_anchor = function(anchor) {
@@ -250,7 +252,7 @@ async function gen_douban(sid) {
     data["episodes"] = episodes = episodes_anchor[0] ? fetch_anchor(episodes_anchor) : "";
     data["duration"] = duration = duration_anchor[0] ? fetch_anchor(duration_anchor) : $("#info span[property=\"v:runtime\"]").text().trim();
 
-    data["awards"] = awards = awards_page("#content > div > div.article").html()   // 这里因为cheerio 是 &#x ，需要unescape
+    data["awards"] = awards = awards_page("#content > div > div.article").html()
       .replace(/[ \n]/g, "")
       .replace(/<\/li><li>/g, "</li> <li>")
       .replace(/<\/a><span/g, "</a> <span")
@@ -276,8 +278,7 @@ async function gen_douban(sid) {
     });
 
     // 生成format
-    let descr = "";
-    descr += poster ? `[img]${poster}[/img]\n\n` : "";
+    let descr = poster ? `[img]${poster}[/img]\n\n` : "";
     descr += trans_title ? `◎译　　名　${trans_title}\n` : "";
     descr += this_title ? `◎片　　名　${this_title}\n` : "";
     descr += year ? `◎年　　代　${year.trim()}\n` : "";
@@ -285,7 +286,7 @@ async function gen_douban(sid) {
     descr += genre ? `◎类　　别　${genre.join(" / ")}\n` : "";
     descr += language ? `◎语　　言　${language}\n` : "";
     descr += playdate ? `◎上映日期　${playdate.join(" / ")}\n` : "";
-    descr += imdb_rating ? `◎IMDb评分  ${imdb_rating}\n` : "";  // 注意如果长时间没能请求完成imdb信息，则该条不显示
+    descr += imdb_rating ? `◎IMDb评分  ${imdb_rating}\n` : "";
     descr += imdb_link ? `◎IMDb链接  ${imdb_link}\n` : "";
     descr += douban_rating ? `◎豆瓣评分　${douban_rating}\n` : "";
     descr += douban_link ? `◎豆瓣链接　${douban_link}\n` : "";
@@ -299,7 +300,7 @@ async function gen_douban(sid) {
     descr += awards ? `\n◎获奖情况\n\n　　${awards.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
 
     data["format"] = descr;
-    
+    data["success"] = true;  // 更新状态为成功
     return makeJsonResponse(data);
   }
 }
