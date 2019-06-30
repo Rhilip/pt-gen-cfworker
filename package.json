@@ -1,0 +1,16 @@
+{
+    "name": "ptgen",
+    "version": "0.0.1",
+    "description": "PT-Gen on Cloudflare Worker",
+    "main": "index.js",
+    "scripts": {
+        "build": "warngler build",
+        "preview": "wrangler preview",
+        "publish": "wrangler publish"
+    },
+    "author": "Rhilip <rhilipruan@gmail.com>",
+    "license": "MIT",
+    "dependencies": {
+        "cheerio": "^1.0.0-rc.3"
+    }
+}
