@@ -382,12 +382,16 @@ async function gen_imdb(sid) {
       raw = [raw];
     }
 
-    data[person_item + "s"] = raw.filter((d) => {
+    let item_persons = raw.filter((d) => {
       return d["@type"] === "Person";
-    }).map((d) => {
-      delete d["@type"];
-      return d;
     });
+
+    if (item_persons.length > 0) {
+      data[person_item + "s"] = item_persons.map((d) => {
+        delete d["@type"];
+        return d;
+      });
+    }
   }
 
   data["keywords"] = page_json["keywords"].split(",");
