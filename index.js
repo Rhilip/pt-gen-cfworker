@@ -1,4 +1,4 @@
-const cheerio = require("cheerio");
+const cheerio = require("cheerio");  // HTML页面解析
 
 /**
  * Cloudflare Worker entrypoint
@@ -7,12 +7,14 @@ addEventListener("fetch", event => {
   event.respondWith(handle(event));
 });
 
+// 常量定义
 const author_ = "Rhilip";
 const version_ = "0.4.7";
 
 const support_list = {
+  // 注意value值中的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
   "douban": /(?:https?:\/\/)?(?:(?:movie|www)\.)?douban\.com\/(?:subject|movie)\/(\d+)\/?/,
-  "imdb": /(?:https?:\/\/)?www\.imdb\.com\/title\/(tt\d+)/,
+  "imdb": /(?:https?:\/\/)?(?:www\.)?imdb\.com\/title\/(tt\d+)\/?/,
   "steam": /(?:https?:\/\/)?(?:store\.)?steam(?:powered|community)\.com\/app\/(\d+)\/?/,
   "indienova": /(?:https?:\/\/)?indienova\.com\/game\/(\S+)/,
   "epic": /(?:https?:\/\/)?www\.epicgames\.com\/store\/[a-z]{2}-[A-Z]{2}\/product\/(\S+)\/\S?/
@@ -26,12 +28,17 @@ const douban_apikey_list = [
   "07c78782db00a121175696889101e363"
 ];
 
+/** 公有的JSON字段，其他字段为不同生成模块的信息
+ *  考虑到历史兼容的问题，应该把所有字段都放在顶层字典
+ *  （虽然说最好的实践是放在 root.data 里面
+ */
 const default_body = {
-  "success": false,
-  "error": null,
-  "format": "",
-  "copyright": `Powered by @${author_}`,
-  "version": version_
+  "success": false,   // 请求是否成功，客户端应该首先检查该字段
+  "error": null,      // 如果请求失败，此处为失败原因
+  "format": "",       // 使用BBCode格式整理的简介
+  "copyright": `Powered by @${author_}`,   // 版权信息
+  "version": version_,   // 版本
+  "generate_at": 0   // 生成时间（毫秒级时间戳），可以通过这个值与当前时间戳比较判断缓存是否应该过期
 };
 
 /**
@@ -56,9 +63,8 @@ async function handle(event) {
       for (let site_ in support_list) {
         let pattern = support_list[site_];
         if (url_.match(pattern)) {
-          let group = url_.match(pattern);
           site = site_;
-          sid = group[1];
+          sid = url_.match(pattern)[1];
           break;
         }
       }
@@ -67,67 +73,82 @@ async function handle(event) {
       sid = uri.searchParams.get("sid");
     }
 
-    // 如果site和sid不存在的话，提前返回
-    if (site == null || sid == null) {
-      response = makeJsonResponse({ error: "Miss key of `site` or `sid` , or input unsupported resource link" });
-    } else {
-      if (site === "douban") {
-        response = await gen_douban(sid);
-        //} else if (site === "imdb") {
-        // TODO
-        //} else if (site === "steam") {
-        // TODO
-        //} else if (site === "indienova") {
-        // TODO
-        //} else if (site === "epic") {
-        // TODO
+    try {
+      // 如果site和sid不存在的话，提前返回
+      if (site == null || sid == null) {
+        response = makeJsonResponse({ error: "Miss key of `site` or `sid` , or input unsupported resource link" });
       } else {
-        // 没有对应方法的资源站点，（真的会有这种情况吗？
-        response = makeJsonResponse({ error: "Unknown type of key `site`." });
+        // 进入对应资源站点处理流程
+        if (site === "douban") {
+          response = await gen_douban(sid);
+        } else if (site === "imdb") {
+          response = await gen_imdb(sid);
+          // TODO
+          //} else if (site === "steam") {
+          // TODO
+          //} else if (site === "indienova") {
+          // TODO
+          //} else if (site === "epic") {
+          // TODO
+        } else {
+          // 没有对应方法的资源站点，（真的会有这种情况吗？
+          response = makeJsonResponse({ error: "Unknown type of key `site`." });
+        }
       }
 
+      // 添加缓存 （ 此处如果response如果为undefined的话会抛出错误
+      event.waitUntil(cache.put(request, response.clone()));
+    } catch (e) {
+      response = makeJsonResponse({ error: `Internal Error, Please contact @${author_}. Exception: ${e.message}` });
+      // 当发生Internal Error的时候不应该进行cache
     }
-
-
-    // 添加缓存
-    event.waitUntil(cache.put(request, response.clone()));
   }
 
   return response;
 }
 
-// 辅助方法
+//-    辅助方法      -//
+
+// 返回Json请求
 function makeJsonResponse(body_update) {
-  let body = Object.assign({}, default_body, body_update);
+  let body = Object.assign(
+    {},
+    default_body,
+    body_update,
+    { generate_at: (new Date()).valueOf() }
+  );
   return new Response(JSON.stringify(body, null, 2), {
     status: 200,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*"
+      "Access-Control-Allow-Origin": "*"   // CORS
     }
   });
 }
 
+// 解析HTML页面
 function page_parser(responseText) {
-  // 替换一些信息防止图片和页面脚本的加载，同时可能加快页面解析速度
-  responseText = responseText.replace(/s+src=/ig, " data-src="); // 图片，部分外源脚本
-  responseText = responseText.replace(/<script[^>]*?>[\S\s]*?<\/script>/ig, ""); //页面脚本
   return cheerio.load(responseText, { decodeEntities: false });
 }
 
+// 解析JSONP返回
 function jsonp_parser(responseText) {
   responseText = responseText.match(/[^(]+\((.+)\)/)[1];
   return JSON.parse(responseText);
 }
 
+// 从前面定义的douban_apikey_list中随机取一个来使用
 function getDoubanApiKey() {
   return douban_apikey_list[
     Math.floor(Math.random() * douban_apikey_list.length)
     ];
 }
 
-// 各个资源站点的相应请求整理方法，统一使用async function
+function getNumberFromString(raw) {
+  return (raw.match(/[\d,]+/) || [0])[0].replace(/,/g, "");
+}
 
+// 各个资源站点的相应请求整理方法，统一使用async function
 async function gen_douban(sid) {
   let data = { site: "douban", sid: sid };
   // 先处理douban上的imdb信息
@@ -151,9 +172,9 @@ async function gen_douban(sid) {
   // 下面开始正常的豆瓣处理流程
   let douban_link = `https://movie.douban.com/subject/${sid}/`;
   let [db_page_resp, db_api_resp, awards_page_resp] = await Promise.all([
-    fetch(`https://movie.douban.com/subject/${sid}/`),
-    fetch(`https://api.douban.com/v2/movie/${sid}?apikey=${getDoubanApiKey()}`),
-    fetch(`https://movie.douban.com/subject/${sid}/awards`)
+    fetch(`https://movie.douban.com/subject/${sid}/`),  // 豆瓣主页面
+    fetch(`https://api.douban.com/v2/movie/${sid}?apikey=${getDoubanApiKey()}`),   // 豆瓣api
+    fetch(`https://movie.douban.com/subject/${sid}/awards`)  // 豆瓣获奖界面
   ]);
 
   let douban_page_raw = await db_page_resp.text();
@@ -217,7 +238,6 @@ async function gen_douban(sid) {
     let episodes_anchor = $("#info span.pl:contains(\"集数\")");  //集数
     let duration_anchor = $("#info span.pl:contains(\"单集片长\")");  //片长
     let has_imdb = $("div#info a[href^='http://www.imdb.com/title/tt']").length > 0;
-
 
     data["year"] = year = " " + $("#content > h1 > span.year").text().substr(1, 4);
     data["region"] = region = regions_anchor[0] ? fetch_anchor(regions_anchor).split(" / ") : "";
@@ -303,4 +323,150 @@ async function gen_douban(sid) {
     data["success"] = true;  // 更新状态为成功
     return makeJsonResponse(data);
   }
+}
+
+async function gen_imdb(sid) {
+  let data = { site: "imdb", sid: sid };
+  // 处理imdb_id tt\d{7,8} 或者 \d{0,8}
+  if (sid.startsWith("tt")) {
+    sid = sid.slice(2);
+  }
+
+  // 不足7位补齐到7位，如果是7、8位则直接使用
+  let imdb_id = "tt" + sid.padStart(7, "0");
+  let imdb_url = `https://www.imdb.com/title/${imdb_id}/`;
+  let [imdb_page_resp, imdb_release_info_page_resp] = await Promise.all([
+    fetch(imdb_url),
+    fetch(`https://www.imdb.com/title/${imdb_id}/releaseinfo`)
+  ]);
+
+  let imdb_page_raw = await imdb_page_resp.text();
+  let imdb_release_info_raw = await imdb_release_info_page_resp.text();
+
+  if (imdb_page_raw.match(/404 Error - IMDb/)) {
+    return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
+  }
+
+  let $ = page_parser(imdb_page_raw);
+  let imdb_release_info = page_parser(imdb_release_info_raw);
+
+  // 首先解析页面中的json信息，并从中获取数据  `<script type="application/ld+json">...</script>`
+  let page_json = JSON.parse(
+    imdb_page_raw.match(/<script type="application\/ld\+json">([\S\s]+?)<\/script>/)[1]
+      .replace(/\n/ig, "")
+  );
+
+  data["imdb_id"] = imdb_id;
+  data["imdb_link"] = imdb_url;
+
+  // 处理可以直接从page_json中复制过来的信息
+  let copy_items = ["@type", "name", "genre", "contentRating", "datePublished", "description", "duration"];
+  for (let i = 0; i < copy_items.length; i++) {
+    let copy_item = copy_items[i];
+    data[copy_item] = page_json[copy_item];
+  }
+
+  data["poster"] = page_json["image"];
+
+  if (data["datePublished"]) {
+    data["year"] = data["datePublished"].slice(0, 4);
+  }
+
+  let person_items = ["actor", "director", "creator"];
+  for (let i = 0; i < person_items.length; i++) {
+    let person_item = person_items[i];
+    let raw = page_json[person_item];
+
+    if (!Array.isArray(raw)) {
+      raw = [raw];
+    }
+
+    data[person_item + "s"] = raw.filter((d) => {
+      return d["@type"] === "Person";
+    }).map((d) => {
+      delete d["@type"];
+      return d;
+    });
+  }
+
+  data["keywords"] = page_json["keywords"].split(",");
+  let aggregate_rating = page_json["aggregateRating"] || {};
+
+  data["imdb_votes"] = aggregate_rating["ratingCount"] || 0;
+  data["imdb_rating_average"] = aggregate_rating["ratingValue"] || 0;
+  data["imdb_rating"] = `${data["imdb_votes"]}/10 from ${data["imdb_rating_average"]} users`;
+
+  // 解析页面元素
+  // 第一部分： Metascore，Reviews，Popularity
+  let mrp_bar = $("div.titleReviewBar > div.titleReviewBarItem");
+  mrp_bar.each(function() {
+    let that = $(this);
+    if (that.text().match(/Metascore/)) {
+      let metascore_another = that.find("div.metacriticScore");
+      if (metascore_another) data["metascore"] = metascore_another.text().trim();
+    } else if (that.text().match(/Reviews/)) {
+      let reviews_another = that.find("a[href^=reviews]");
+      let critic_another = that.find("a[href^=externalreviews]");
+      if (reviews_another) data["reviews"] = getNumberFromString(reviews_another.text());
+      if (critic_another) data["critic"] = getNumberFromString(critic_another.text());
+    } else if (that.text().match(/Popularity/)) {
+      data["popularity"] = getNumberFromString(that.text());
+    }
+  });
+
+  // 第二部分： Details
+  let details_another = $("div#titleDetails");
+  let title_anothers = details_another.find("div.txt-block");
+  let details_dict = {};
+  title_anothers.each(function() {
+    let title_raw = $(this).text().replace(/\n/ig, " ").replace(/See more »|Show more on {3}IMDbPro »/g, "").trim();
+    if (title_raw.length > 0) {
+      let title_key = title_raw.split(/: ?/, 1)[0];
+      details_dict[title_key] = title_raw.replace(title_key + ":", "").replace(/ {2,}/g, " ").trim();
+    }
+  });
+  data["details"] = details_dict;
+
+  // 请求附属信息
+  // 第一部分： releaseinfo
+  let release_date_items = imdb_release_info("tr.release-date-item");
+  let release_date = [], aka = [];
+  release_date_items.each(function() {
+    let that = imdb_release_info(this);  // $(this) ?
+    let country = that.find("td.release-date-item__country-name");
+    let date = that.find("td.release-date-item__date");
+
+    if (country && date) {
+      release_date.push({ country: country.text().trim(), date: date.text().trim() });
+    }
+  });
+  data["release_date"] = release_date;
+
+  let aka_items = imdb_release_info("tr.aka-item");
+  aka_items.each(function() {
+    let that = imdb_release_info(this);
+    let country = that.find("td.aka-item__name");
+    let title = that.find("td.aka-item__title");
+
+    if (country && title) {
+      aka_items.push({ country: country.text().trim(), title: title.text().trim() });
+    }
+  });
+  data['aka'] = aka;
+
+  // 生成format
+  let descr = data["poster"] ? `[img]${data["poster"]}[/img]\n\n` : "";
+  descr += data["name"] ? `Title: ${data["name"]}\n` : "";
+  descr += data["keywords"] ? `Keywords: ${data["keywords"].join(", ")}\n` : "";
+  descr += data["datePublished"] ? `Date Published: ${data["datePublished"]}\n` : "";
+  descr += data["imdb_rating"] ? `IMDb Rating: ${data["imdb_rating"]}\n` : "";
+  descr += data["imdb_link"] ? `IMDb Link: ${data["imdb_link"]}\n` : "";
+  descr += data["directors"] ? `Directors: ${data["directors"].map(i => i["name"]).join(" / ")}\n` : "";
+  descr += data["creators"] ? `Creators: ${data["creators"].map(i => i["name"]).join(" / ")}\n` : "";
+  descr += data["actors"] ? `Actors: ${data["actors"].map(i => i["name"]).join(" / ")}\n` : "";
+  descr += data["description"] ? `\nIntroduction\n    ${data["description"].replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
+
+  data["format"] = descr;
+  data["success"] = true;  // 更新状态为成功
+  return makeJsonResponse(data);
 }
