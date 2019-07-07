@@ -12,9 +12,10 @@ const author_ = "Rhilip";
 const version_ = "0.4.7";
 
 const support_list = {
-  // 注意value值中的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
+  // 注意value值中正则的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
   "douban": /(?:https?:\/\/)?(?:(?:movie|www)\.)?douban\.com\/(?:subject|movie)\/(\d+)\/?/,
   "imdb": /(?:https?:\/\/)?(?:www\.)?imdb\.com\/title\/(tt\d+)\/?/,
+  "bangumi": /(?:https?:\/\/)?(?:bgm\.tv|bangumi\.tv|chii\.in)\/subject\/(\d+)\/?/,
   "steam": /(?:https?:\/\/)?(?:store\.)?steam(?:powered|community)\.com\/app\/(\d+)\/?/,
   "indienova": /(?:https?:\/\/)?indienova\.com\/game\/(\S+)/,
   "epic": /(?:https?:\/\/)?www\.epicgames\.com\/store\/[a-z]{2}-[A-Z]{2}\/product\/(\S+)\/\S?/
@@ -83,6 +84,8 @@ async function handle(event) {
           response = await gen_douban(sid);
         } else if (site === "imdb") {
           response = await gen_imdb(sid);
+        } else if (site === "bangumi") {
+          response = await gen_bangumi(sid);
           // TODO
           //} else if (site === "steam") {
           // TODO
@@ -341,14 +344,12 @@ async function gen_imdb(sid) {
   ]);
 
   let imdb_page_raw = await imdb_page_resp.text();
-  let imdb_release_info_raw = await imdb_release_info_page_resp.text();
 
   if (imdb_page_raw.match(/404 Error - IMDb/)) {
     return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
   }
 
   let $ = page_parser(imdb_page_raw);
-  let imdb_release_info = page_parser(imdb_release_info_raw);
 
   // 首先解析页面中的json信息，并从中获取数据  `<script type="application/ld+json">...</script>`
   let page_json = JSON.parse(
@@ -429,6 +430,9 @@ async function gen_imdb(sid) {
 
   // 请求附属信息
   // 第一部分： releaseinfo
+  let imdb_release_info_raw = await imdb_release_info_page_resp.text();
+  let imdb_release_info = page_parser(imdb_release_info_raw);
+
   let release_date_items = imdb_release_info("tr.release-date-item");
   let release_date = [], aka = [];
   release_date_items.each(function() {
@@ -452,7 +456,7 @@ async function gen_imdb(sid) {
       aka_items.push({ country: country.text().trim(), title: title.text().trim() });
     }
   });
-  data['aka'] = aka;
+  data["aka"] = aka;
 
   // 生成format
   let descr = data["poster"] ? `[img]${data["poster"]}[/img]\n\n` : "";
@@ -465,6 +469,76 @@ async function gen_imdb(sid) {
   descr += data["creators"] ? `Creators: ${data["creators"].map(i => i["name"]).join(" / ")}\n` : "";
   descr += data["actors"] ? `Actors: ${data["actors"].map(i => i["name"]).join(" / ")}\n` : "";
   descr += data["description"] ? `\nIntroduction\n    ${data["description"].replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
+
+  data["format"] = descr;
+  data["success"] = true;  // 更新状态为成功
+  return makeJsonResponse(data);
+}
+
+async function gen_bangumi(sid) {
+  let data = { site: "bangumi", sid: sid };
+
+  // 请求页面
+  let bangumi_link = `https://bgm.tv/subject/${sid}`;
+  let [bangumi_page_resp, bangumi_characters_resp] = await Promise.all([
+    fetch(bangumi_link),
+    fetch(`https://bgm.tv/subject/${sid}/characters`)
+  ]);
+
+  let bangumi_page_raw = await bangumi_page_resp.text();
+
+  if (bangumi_page_raw.match(/呜咕，出错了/)) {
+    return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
+  }
+
+  data["alt"] = bangumi_link;
+  let $ = page_parser(bangumi_page_raw);
+
+  // 对页面进行划区
+  let cover_staff_another = $("div#bangumiInfo");
+  let cover_another = cover_staff_another.find("a.thickbox.cover");
+  let staff_another = cover_staff_another.find("ul#infobox");
+  let story_another = $("div#subject_summary");
+  // let cast_another = $('div#browserItemList');
+
+  console.log(cover_staff_another.html());
+
+  /*  data['cover'] 为向前兼容项，之后均用 poster 表示海报
+   *  这里有个问题，就是仍按 img.attr('src') 会取不到值因为 cf-worker中fetch 返回的html片段如下 ： https://pastebin.com/0wPLAf8t
+   *  暂时不明白是因为 cf-worker 的问题还是 cf-CDN 的问题，因为直接源代码审查未发现该片段。
+   */
+  data["cover"] = data["poster"] = cover_another ? ("https:" + cover_another.attr("href")).replace(/\/cover\/[lcmsg]\//, "/cover/l/") : "";
+  data["story"] = story_another ? story_another.text().trim() : "";
+  data["staff"] = staff_another.find("li")
+    .slice(4, 4 + 15)   // 读取第4-19行  （假定bgm的顺序为中文名、话数、放送开始、放送星期...，对新番适用，较老番组可能不好  ，staff从第四个 导演 起算）
+    .map(function() {
+      return $(this).text();
+    })
+    .get();
+
+  let bangumi_characters_page_raw = await bangumi_characters_resp.text();
+  let bangumi_characters_page = page_parser(bangumi_characters_page_raw);
+  let cast_actors = bangumi_characters_page("div#columnInSubjectA > div.light_odd > div.clearit");
+
+  data["cast"] = cast_actors
+    .slice(0, 9)   // 读取前9项cast信息
+    .map(function() {
+      let tag = bangumi_characters_page(this);
+      let h2 = tag.find("h2");
+      let char = (h2.find("span.tip") || h2.find("a")).text().replace(/\//, "").trim();
+      let cv = tag.find("div.clearit > p").map(function() {
+        let p = bangumi_characters_page(this);
+        return (p.find("small") || p.find("a")).text().trim();
+      }).get().join("，");
+      return `${char}: ${cv}`;
+    }).get();
+
+  // 生成format
+  let descr = data["poster"] ? `[img]${data["poster"]}[/img]\n\n` : "";
+  descr += data["story"] ? `[b]Story: [/b]\n\n${data["story"]}\n\n` : "";
+  descr += data["staff"] ? `[b]Staff: [/b]\n\n${data["staff"].join("\n")}\n\n` : "";
+  descr += data["cast"] ? `[b]Cast: [/b]\n\n${data["cast"].join("\n")}\n\n` : "";
+  descr += data["alt"] ? `(来源于 ${data["alt"]} )\n` : "";
 
   data["format"] = descr;
   data["success"] = true;  // 更新状态为成功
