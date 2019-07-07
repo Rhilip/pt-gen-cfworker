@@ -354,7 +354,7 @@ async function gen_imdb(sid) {
   // 首先解析页面中的json信息，并从中获取数据  `<script type="application/ld+json">...</script>`
   let page_json = JSON.parse(
     imdb_page_raw.match(/<script type="application\/ld\+json">([\S\s]+?)<\/script>/)[1]
-      .replace(/\n/ig, "")
+      .replace(/\n/g, "")
   );
 
   data["imdb_id"] = imdb_id;
@@ -378,10 +378,14 @@ async function gen_imdb(sid) {
     let person_item = person_items[i];
     let raw = page_json[person_item];
 
+    if (!raw) continue;   // 没有对应直接直接进入下一轮
+
+    // 有时候这个可能为一个dict而不是dict array
     if (!Array.isArray(raw)) {
       raw = [raw];
     }
 
+    // 只要人的（Person），不要组织的（Organization）
     let item_persons = raw.filter((d) => {
       return d["@type"] === "Person";
     });
