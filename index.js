@@ -533,7 +533,7 @@ async function gen_bangumi(sid) {
     .map(function() {
       let tag = bangumi_characters_page(this);
       let h2 = tag.find("h2");
-      let char = (h2.find("span.tip") || h2.find("a")).text().replace(/\//, "").trim();
+      let char = (h2.find("span.tip").text() || h2.find("a").text()).replace(/\//, "").trim();
       let cv = tag.find("div.clearit > p").map(function() {
         let p = bangumi_characters_page(this);
         return (p.find("small") || p.find("a")).text().trim();
