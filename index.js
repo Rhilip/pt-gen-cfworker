@@ -453,7 +453,7 @@ async function gen_imdb(sid) {
     let title = that.find("td.aka-item__title");
 
     if (country && title) {
-      aka_items.push({ country: country.text().trim(), title: title.text().trim() });
+      aka.push({ country: country.text().trim(), title: title.text().trim() });
     }
   });
   data["aka"] = aka;
