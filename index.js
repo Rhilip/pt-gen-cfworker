@@ -50,10 +50,10 @@ const default_body = {
  * @param {Event} event
  */
 async function handle(event) {
-  let request = event.request;  // 请求
+  const request = event.request;  // 获取请求
 
   // 检查缓存，命中则直接返回
-  let cache = caches.default;  // 定义缓存
+  const cache = caches.default;  // 定义缓存
   let response = await cache.match(request);
 
   if (!response) {
@@ -80,7 +80,7 @@ async function handle(event) {
     try {
       // 如果site和sid不存在的话，提前返回
       if (site == null || sid == null) {
-        response = makeJsonResponse({ error: "Miss key of `site` or `sid` , or input unsupported resource link" });
+        response = makeJsonResponse({ error: "Miss key of `site` or `sid` , or input unsupported resource `url`." });
       } else {
         if (support_site_list.includes(site)) {
           // 进入对应资源站点处理流程
@@ -92,8 +92,8 @@ async function handle(event) {
             response = await gen_bangumi(sid);
           } else if (site === "steam") {
             response = await gen_steam(sid);
-            //} else if (site === "indienova") {
-            // TODO
+          } else if (site === "indienova") {
+            response = await gen_indienova(sid);
             //} else if (site === "epic") {
             // TODO
           } else {
@@ -673,10 +673,135 @@ async function gen_steam(sid) {
   descr += data["language"] ? `游戏语种: ${data["language"].join(" | ")}\n` : "";
   descr += data["tags"] ? `标签: ${data["tags"].join(" | ")}\n` : "";
   descr += data["review"] ? `\n${data["review"].join("\n")}\n` : "";
-  descr += '\n';
+  descr += "\n";
   descr += data["descr"] ? `【游戏简介】\n\n${data["descr"]}\n\n` : "";
   descr += data["sysreq"] ? `【配置需求】\n\n${data["sysreq"].join("\n")}\n\n` : "";
   descr += data["screenshot"] ? `【游戏截图】\n\n${data["screenshot"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
+
+  data["format"] = descr;
+  data["success"] = true;  // 更新状态为成功
+  return makeJsonResponse(data);
+}
+
+async function gen_indienova(sid) {
+  let data = { site: "indienova", sid: sid };
+
+  let [indienova_page_resp] = await Promise.all([
+    fetch(`https://indienova.com/game/${sid}`)
+  ]);
+
+  let indienova_page_raw = await indienova_page_resp.text();
+
+  // 检查标题看对应资源是否存在
+  if (indienova_page_raw.match(/出现错误/)) {
+    return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
+  }
+
+  let $ = page_parser(indienova_page_raw);
+
+  data["poster"] = data["cover"] = $("div.cover-image img").attr("src");  // 提出封面链接
+  data["chinese_title"] = $("title").text().split("|")[0].split("-")[0].trim();  // 提出标题部分
+
+  let title_field = $("div.title-holder");  // 提取出副标部分
+  data["another_title"] = title_field.find("h1 small") ? title_field.find("h1 small").text().trim() : "";
+  data["english_title"] = title_field.find("h1 span") ? title_field.find("h1 span").text().trim() : "";
+  data["release_date"] = title_field.find("p.gamedb-release").text().trim();
+
+  // 提取链接信息
+  let link_field = $("div#tabs-link a.gamedb-link");
+  if (link_field.length > 0) {
+    let links = {};
+    link_field.each(function() {
+      let that = $(this);
+      let site = that.text().trim();
+      links[site] = that.attr("href");
+    });
+    data["links"] = links;
+  }
+
+  // 提取简介、类型信息
+  let intro_field = $("#tabs-intro");
+  data["intro"] = intro_field.find("div.bottommargin-sm").text().trim();
+
+  let tt = intro_field.find("p.single-line");
+  if (tt.length > 0) {
+    data["intro_detail"] = tt.map(function() {
+      return $(this).text().replace(/[ \n]+/ig, " ").replace(/,/g, "/").trim();
+    }).get();
+  }
+
+  // 提取详细介绍 在游戏无详细介绍时用简介代替
+  let descr_field = $("article");
+  data["descr"] = descr_field.length > 0 ? descr_field.text().replace("……显示全部", "").trim() : data["intro"];
+
+  // 提取评分信息
+  let rating_field = $("div#scores text").map(function() {
+    return $(this).text();
+  }).get();
+  data["rate"] = `${rating_field[0]}:${rating_field[1]} / ${rating_field[2]}:${rating_field[3]}`;
+
+  // 提取制作与发行商
+  let pubdev = $("div#tabs-devpub ul[class^=\"db-companies\"]");
+  data["dev"] = pubdev.eq(0).text().trim().split("\n").map(function(value, index, array) {
+    return value.trim();
+  });
+  data["pub"] = pubdev.length === 2 ? pubdev.eq(1).text().trim().split("\n").map(function(value, index, array) {
+    return value.trim();
+  }) : [];
+
+  // 提取图片列表
+  data["screenshot"] = $("li.slide img").map(function() {
+    return $(this).attr("src");
+  }).get();
+
+  // 提取标签信息
+  let cat_field = $("div.indienova-tags.gamedb-tags");
+  let cat = cat_field ? cat_field.text().trim().split("\n").map(x => x.trim()) : [];
+  // 对cat进行去重并移除 "查看全部 +"
+  data["cat"] = cat.filter(function(item, pos) {
+    return cat.indexOf(item) === pos && item !== "查看全部 +";
+  });
+
+  // 提取分级信息
+  let level_field = $("h4:contains(\"分级\") + div.bottommargin-sm");
+  data["level"] = level_field ? level_field.find("img").map(function() {
+    return $(this).attr("src");
+  }).get() : [];
+
+  // 提取价格信息
+  let price_fields = $("ul.db-stores");
+  data["price"] = price_fields ? price_fields.find("li").map(function() {
+    let price_field = $(this).find("a > div");  // 里面依次为3个div，分别为 store, platform , price
+    let store = price_field.eq(0).text().trim();
+    //let platform = price_field.eq(1).text().trim();  // 均为图片，无内容
+    let price = price_field.eq(2).text().trim().replace(/[ \n]{2,}/, " ");
+    return `${store}：${price}`;
+  }).get() : [];
+
+  // 生成format
+  let descr = data["cover"] ? `[img]${data["cover"]}[/img]\n\n` : "";
+  descr += "【基本信息】\n\n";  // 基本信息为原来的baseinfo块
+
+  descr += data["chinese_title"] ? `中文名称：${data["chinese_title"]}\n` : "";
+  descr += data["english_title"] ? `英文名称：${data["english_title"]}\n` : "";
+  descr += data["another_title"] ? `其他名称：${data["another_title"]}\n` : "";
+  descr += data["release_date"] ? `发行时间：${data["release_date"]}\n` : "";
+  descr += data["rate"] ? `评分：${data["rate"]}\n` : "";
+  descr += data["dev"] ? `开发商：${data["dev"].join(" / ")}\n` : "";
+  descr += data["pub"] ? `发行商：${data["pub"].join(" / ")}\n` : "";
+  descr += data["cat"] ? `标签：${data["cat"].slice(0, 8).join(" | ")}\n` : "";
+  if (data["links"]) {
+    let format_links = [];
+    for (let [key, value] of Object.entries(data["links"])) {
+      format_links.push(`[url=${value}]${key}[/url]`);
+    }
+    descr += `链接地址：${format_links.join("  ")}\n`;
+  }
+  descr += data["price"] ? `价格信息：${data["price"].join(" / ")}\n` : "";
+  descr += "\n";
+  descr += data["descr"] ? `【游戏简介】\n\n${data["descr"]}\n\n` : "";
+  descr += data["screenshot"] ? `【游戏截图】\n\n${data["screenshot"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
+  descr += data["level"] ? `【游戏评级】\n\n${data["level"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
 
   data["format"] = descr;
   data["success"] = true;  // 更新状态为成功
