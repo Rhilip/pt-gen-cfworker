@@ -313,26 +313,26 @@ async function gen_douban(sid) {
     });
 
     // 生成format
-    let descr = poster ? `[img]${poster}[/img]\n\n` : "";
-    descr += trans_title ? `◎译　　名　${trans_title}\n` : "";
-    descr += this_title ? `◎片　　名　${this_title}\n` : "";
-    descr += year ? `◎年　　代　${year.trim()}\n` : "";
-    descr += region ? `◎产　　地　${region}\n` : "";
-    descr += genre ? `◎类　　别　${genre.join(" / ")}\n` : "";
-    descr += language ? `◎语　　言　${language}\n` : "";
-    descr += playdate ? `◎上映日期　${playdate.join(" / ")}\n` : "";
-    descr += imdb_rating ? `◎IMDb评分  ${imdb_rating}\n` : "";
-    descr += imdb_link ? `◎IMDb链接  ${imdb_link}\n` : "";
-    descr += douban_rating ? `◎豆瓣评分　${douban_rating}\n` : "";
-    descr += douban_link ? `◎豆瓣链接　${douban_link}\n` : "";
-    descr += episodes ? `◎集　　数　${episodes}\n` : "";
-    descr += duration ? `◎片　　长　${duration}\n` : "";
-    descr += director ? `◎导　　演　${director}\n` : "";
-    descr += writer ? `◎编　　剧　${writer}\n` : "";
-    descr += cast ? `◎主　　演　${cast.replace(/\n/g, "\n" + "　".repeat(4) + "  　").trim()}\n` : "";
-    descr += tags ? `\n◎标　　签　${tags.join(" | ")}\n` : "";
-    descr += introduction ? `\n◎简　　介\n\n　　${introduction.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
-    descr += awards ? `\n◎获奖情况\n\n　　${awards.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
+    let descr = poster.length > 0  ? `[img]${poster}[/img]\n\n` : "";
+    descr += trans_title.length > 0  ? `◎译　　名　${trans_title}\n` : "";
+    descr += this_title.length > 0  ? `◎片　　名　${this_title}\n` : "";
+    descr += year.length > 0  ? `◎年　　代　${year.trim()}\n` : "";
+    descr += region.length > 0  ? `◎产　　地　${region}\n` : "";
+    descr += genre.length > 0  ? `◎类　　别　${genre.join(" / ")}\n` : "";
+    descr += language.length > 0  ? `◎语　　言　${language}\n` : "";
+    descr += playdate.length > 0  ? `◎上映日期　${playdate.join(" / ")}\n` : "";
+    descr += imdb_rating.length > 0  ? `◎IMDb评分  ${imdb_rating}\n` : "";
+    descr += imdb_link.length > 0  ? `◎IMDb链接  ${imdb_link}\n` : "";
+    descr += douban_rating.length > 0  ? `◎豆瓣评分　${douban_rating}\n` : "";
+    descr += douban_link.length > 0  ? `◎豆瓣链接　${douban_link}\n` : "";
+    descr += episodes.length > 0  ? `◎集　　数　${episodes}\n` : "";
+    descr += duration.length > 0  ? `◎片　　长　${duration}\n` : "";
+    descr += director.length > 0  ? `◎导　　演　${director}\n` : "";
+    descr += writer.length > 0  ? `◎编　　剧　${writer}\n` : "";
+    descr += cast.length > 0  ? `◎主　　演　${cast.replace(/\n/g, "\n" + "　".repeat(4) + "  　").trim()}\n` : "";
+    descr += tags.length > 0  ? `\n◎标　　签　${tags.join(" | ")}\n` : "";
+    descr += introduction.length > 0  ? `\n◎简　　介\n\n　　${introduction.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
+    descr += awards.length > 0  ? `\n◎获奖情况\n\n　　${awards.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
 
     data["format"] = descr;
     data["success"] = true;  // 更新状态为成功
@@ -479,16 +479,16 @@ async function gen_imdb(sid) {
   data["aka"] = aka;
 
   // 生成format
-  let descr = data["poster"] ? `[img]${data["poster"]}[/img]\n\n` : "";
-  descr += data["name"] ? `Title: ${data["name"]}\n` : "";
-  descr += data["keywords"] ? `Keywords: ${data["keywords"].join(", ")}\n` : "";
-  descr += data["datePublished"] ? `Date Published: ${data["datePublished"]}\n` : "";
-  descr += data["imdb_rating"] ? `IMDb Rating: ${data["imdb_rating"]}\n` : "";
-  descr += data["imdb_link"] ? `IMDb Link: ${data["imdb_link"]}\n` : "";
-  descr += data["directors"] ? `Directors: ${data["directors"].map(i => i["name"]).join(" / ")}\n` : "";
-  descr += data["creators"] ? `Creators: ${data["creators"].map(i => i["name"]).join(" / ")}\n` : "";
-  descr += data["actors"] ? `Actors: ${data["actors"].map(i => i["name"]).join(" / ")}\n` : "";
-  descr += data["description"] ? `\nIntroduction\n    ${data["description"].replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
+  let descr = data["poster"].length > 0  ? `[img]${data["poster"]}[/img]\n\n` : "";
+  descr += data["name"].length > 0  ? `Title: ${data["name"]}\n` : "";
+  descr += data["keywords"].length > 0  ? `Keywords: ${data["keywords"].join(", ")}\n` : "";
+  descr += data["datePublished"].length > 0  ? `Date Published: ${data["datePublished"]}\n` : "";
+  descr += data["imdb_rating"].length > 0  ? `IMDb Rating: ${data["imdb_rating"]}\n` : "";
+  descr += data["imdb_link"].length > 0  ? `IMDb Link: ${data["imdb_link"]}\n` : "";
+  descr += data["directors"].length > 0  ? `Directors: ${data["directors"].map(i => i["name"]).join(" / ")}\n` : "";
+  descr += data["creators"].length > 0  ? `Creators: ${data["creators"].map(i => i["name"]).join(" / ")}\n` : "";
+  descr += data["actors"].length > 0  ? `Actors: ${data["actors"].map(i => i["name"]).join(" / ")}\n` : "";
+  descr += data["description"].length > 0  ? `\nIntroduction\n    ${data["description"].replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
 
   data["format"] = descr;
   data["success"] = true;  // 更新状态为成功
@@ -552,11 +552,11 @@ async function gen_bangumi(sid) {
     }).get();
 
   // 生成format
-  let descr = data["poster"] ? `[img]${data["poster"]}[/img]\n\n` : "";
-  descr += data["story"] ? `[b]Story: [/b]\n\n${data["story"]}\n\n` : "";
-  descr += data["staff"] ? `[b]Staff: [/b]\n\n${data["staff"].join("\n")}\n\n` : "";
-  descr += data["cast"] ? `[b]Cast: [/b]\n\n${data["cast"].join("\n")}\n\n` : "";
-  descr += data["alt"] ? `(来源于 ${data["alt"]} )\n` : "";
+  let descr = data["poster"].length > 0  ? `[img]${data["poster"]}[/img]\n\n` : "";
+  descr += data["story"].length > 0  ? `[b]Story: [/b]\n\n${data["story"]}\n\n` : "";
+  descr += data["staff"].length > 0  ? `[b]Staff: [/b]\n\n${data["staff"].join("\n")}\n\n` : "";
+  descr += data["cast"].length > 0  ? `[b]Cast: [/b]\n\n${data["cast"].join("\n")}\n\n` : "";
+  descr += data["alt"].length > 0  ? `(来源于 ${data["alt"]} )\n` : "";
 
   data["format"] = descr;
   data["success"] = true;  // 更新状态为成功
@@ -664,19 +664,19 @@ async function gen_steam(sid) {
   }).get() : [];
 
   // 生成format
-  let descr = data["poster"] ? `[img]${data["poster"]}[/img]\n\n` : "";
+  let descr = data["poster"].length > 0  ? `[img]${data["poster"]}[/img]\n\n` : "";
   descr += "【基本信息】\n\n";  // 基本信息为原来的baseinfo块
-  descr += data["name_chs"] ? `中文名: ${data["name_chs"]}\n` : "";
-  descr += data["detail"] ? `${data["detail"]}\n` : "";
-  descr += data["linkbar"] ? `官方网站: ${data["linkbar"]}\n` : "";
-  descr += data["steam_id"] ? `Steam页面: https://store.steampowered.com/app/${data["steam_id"]}/\n` : "";
-  descr += data["language"] ? `游戏语种: ${data["language"].join(" | ")}\n` : "";
-  descr += data["tags"] ? `标签: ${data["tags"].join(" | ")}\n` : "";
-  descr += data["review"] ? `\n${data["review"].join("\n")}\n` : "";
+  descr += data["name_chs"].length > 0  ? `中文名: ${data["name_chs"]}\n` : "";
+  descr += data["detail"].length > 0  ? `${data["detail"]}\n` : "";
+  descr += data["linkbar"].length > 0  ? `官方网站: ${data["linkbar"]}\n` : "";
+  descr += data["steam_id"].length > 0  ? `Steam页面: https://store.steampowered.com/app/${data["steam_id"]}/\n` : "";
+  descr += data["language"].length > 0  ? `游戏语种: ${data["language"].join(" | ")}\n` : "";
+  descr += data["tags"].length > 0  ? `标签: ${data["tags"].join(" | ")}\n` : "";
+  descr += data["review"].length > 0  ? `\n${data["review"].join("\n")}\n` : "";
   descr += "\n";
-  descr += data["descr"] ? `【游戏简介】\n\n${data["descr"]}\n\n` : "";
-  descr += data["sysreq"] ? `【配置需求】\n\n${data["sysreq"].join("\n")}\n\n` : "";
-  descr += data["screenshot"] ? `【游戏截图】\n\n${data["screenshot"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
+  descr += data["descr"].length > 0  ? `【游戏简介】\n\n${data["descr"]}\n\n` : "";
+  descr += data["sysreq"].length > 0  ? `【配置需求】\n\n${data["sysreq"].join("\n")}\n\n` : "";
+  descr += data["screenshot"].length > 0  ? `【游戏截图】\n\n${data["screenshot"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
 
   data["format"] = descr;
   data["success"] = true;  // 更新状态为成功
@@ -782,26 +782,26 @@ async function gen_indienova(sid) {
   let descr = data["cover"] ? `[img]${data["cover"]}[/img]\n\n` : "";
   descr += "【基本信息】\n\n";  // 基本信息为原来的baseinfo块
 
-  descr += data["chinese_title"] ? `中文名称：${data["chinese_title"]}\n` : "";
-  descr += data["english_title"] ? `英文名称：${data["english_title"]}\n` : "";
-  descr += data["another_title"] ? `其他名称：${data["another_title"]}\n` : "";
-  descr += data["release_date"] ? `发行时间：${data["release_date"]}\n` : "";
-  descr += data["rate"] ? `评分：${data["rate"]}\n` : "";
-  descr += data["dev"] ? `开发商：${data["dev"].join(" / ")}\n` : "";
-  descr += data["pub"] ? `发行商：${data["pub"].join(" / ")}\n` : "";
-  descr += data["cat"] ? `标签：${data["cat"].slice(0, 8).join(" | ")}\n` : "";
-  if (data["links"]) {
+  descr += data["chinese_title"].length > 0 ? `中文名称：${data["chinese_title"]}\n` : "";
+  descr += data["english_title"].length > 0 ? `英文名称：${data["english_title"]}\n` : "";
+  descr += data["another_title"].length > 0 ? `其他名称：${data["another_title"]}\n` : "";
+  descr += data["release_date"].length > 0 ? `发行时间：${data["release_date"]}\n` : "";
+  descr += data["rate"].length > 0 ? `评分：${data["rate"]}\n` : "";
+  descr += data["dev"].length > 0 ? `开发商：${data["dev"].join(" / ")}\n` : "";
+  descr += data["pub"].length > 0 ? `发行商：${data["pub"].join(" / ")}\n` : "";
+  descr += data["cat"].length > 0 ? `标签：${data["cat"].slice(0, 8).join(" | ")}\n` : "";
+  if (data["links"].length > 0) {
     let format_links = [];
     for (let [key, value] of Object.entries(data["links"])) {
       format_links.push(`[url=${value}]${key}[/url]`);
     }
     descr += `链接地址：${format_links.join("  ")}\n`;
   }
-  descr += data["price"] ? `价格信息：${data["price"].join(" / ")}\n` : "";
+  descr += data["price"].length > 0 ? `价格信息：${data["price"].join(" / ")}\n` : "";
   descr += "\n";
-  descr += data["descr"] ? `【游戏简介】\n\n${data["descr"]}\n\n` : "";
-  descr += data["screenshot"] ? `【游戏截图】\n\n${data["screenshot"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
-  descr += data["level"] ? `【游戏评级】\n\n${data["level"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
+  descr += data["descr"].length > 0 ? `【游戏简介】\n\n${data["descr"]}\n\n` : "";
+  descr += data["screenshot"].length > 0 ? `【游戏截图】\n\n${data["screenshot"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
+  descr += data["level"].length > 0 ? `【游戏评级】\n\n${data["level"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
 
   data["format"] = descr;
   data["success"] = true;  // 更新状态为成功
