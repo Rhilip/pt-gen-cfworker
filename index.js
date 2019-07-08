@@ -1,4 +1,5 @@
 const cheerio = require("cheerio");  // HTML页面解析
+const HTML2BBCode = require("html2bbcode").HTML2BBCode;
 
 /**
  * Cloudflare Worker entrypoint
@@ -20,6 +21,8 @@ const support_list = {
   "indienova": /(?:https?:\/\/)?indienova\.com\/game\/(\S+)/,
   "epic": /(?:https?:\/\/)?www\.epicgames\.com\/store\/[a-z]{2}-[A-Z]{2}\/product\/(\S+)\/\S?/
 };
+
+const support_site_list = Object.keys(support_list);
 
 const douban_apikey_list = [
   "02646d3fb69a52ff072d47bf23cef8fd",
@@ -79,26 +82,28 @@ async function handle(event) {
       if (site == null || sid == null) {
         response = makeJsonResponse({ error: "Miss key of `site` or `sid` , or input unsupported resource link" });
       } else {
-        // 进入对应资源站点处理流程
-        if (site === "douban") {
-          response = await gen_douban(sid);
-        } else if (site === "imdb") {
-          response = await gen_imdb(sid);
-        } else if (site === "bangumi") {
-          response = await gen_bangumi(sid);
-          // TODO
-          //} else if (site === "steam") {
-          // TODO
-          //} else if (site === "indienova") {
-          // TODO
-          //} else if (site === "epic") {
-          // TODO
+        if (support_site_list.includes(site)) {
+          // 进入对应资源站点处理流程
+          if (site === "douban") {
+            response = await gen_douban(sid);
+          } else if (site === "imdb") {
+            response = await gen_imdb(sid);
+          } else if (site === "bangumi") {
+            response = await gen_bangumi(sid);
+          } else if (site === "steam") {
+            response = await gen_steam(sid);
+            //} else if (site === "indienova") {
+            // TODO
+            //} else if (site === "epic") {
+            // TODO
+          } else {
+            // 没有对应方法的资源站点，（真的会有这种情况吗？
+            response = makeJsonResponse({ error: "Miss generate function for `site`: " + site + "." });
+          }
         } else {
-          // 没有对应方法的资源站点，（真的会有这种情况吗？
-          response = makeJsonResponse({ error: "Unknown type of key `site`." });
+          response = makeJsonResponse({ error: "Unknown value of key `site`." });
         }
       }
-
       // 添加缓存 （ 此处如果response如果为undefined的话会抛出错误
       event.waitUntil(cache.put(request, response.clone()));
     } catch (e) {
@@ -138,6 +143,13 @@ function page_parser(responseText) {
 function jsonp_parser(responseText) {
   responseText = responseText.match(/[^(]+\((.+)\)/)[1];
   return JSON.parse(responseText);
+}
+
+// Html2bbcode
+function html2bbcode(html) {
+  let converter = new HTML2BBCode();
+  let bbcode = converter.feed(html);
+  return bbcode.toString();
 }
 
 // 从前面定义的douban_apikey_list中随机取一个来使用
@@ -509,8 +521,6 @@ async function gen_bangumi(sid) {
   let story_another = $("div#subject_summary");
   // let cast_another = $('div#browserItemList');
 
-  console.log(cover_staff_another.html());
-
   /*  data['cover'] 为向前兼容项，之后均用 poster 表示海报
    *  这里有个问题，就是仍按 img.attr('src') 会取不到值因为 cf-worker中fetch 返回的html片段如下 ： https://pastebin.com/0wPLAf8t
    *  暂时不明白是因为 cf-worker 的问题还是 cf-CDN 的问题，因为直接源代码审查未发现该片段。
@@ -547,6 +557,126 @@ async function gen_bangumi(sid) {
   descr += data["staff"] ? `[b]Staff: [/b]\n\n${data["staff"].join("\n")}\n\n` : "";
   descr += data["cast"] ? `[b]Cast: [/b]\n\n${data["cast"].join("\n")}\n\n` : "";
   descr += data["alt"] ? `(来源于 ${data["alt"]} )\n` : "";
+
+  data["format"] = descr;
+  data["success"] = true;  // 更新状态为成功
+  return makeJsonResponse(data);
+}
+
+async function gen_steam(sid) {
+  let data = { site: "steam", sid: sid };
+
+  let [steam_page_resp, steamcn_api_resp] = await Promise.all([
+    fetch(`https://store.steampowered.com/app/${sid}/?l=schinese`, {
+      headers: {  // 使用Cookies绕过年龄检查和成人内容提示，并强制中文
+        "Cookies": "lastagecheckage=1-January-1975; birthtime=157737601; mature_content=1; wants_mature_content=1; Steam_Language=schinese"
+      }
+    }),
+    fetch(`https://steamdb.steamcn.com/app/${sid}/data.js?v=38`)
+  ]);
+
+  let steam_page_raw = await steam_page_resp.text();
+
+  // 不存在的资源会被302到首页，故检查标题
+  if (steam_page_raw.match(/<title>(欢迎来到|Welcome to) Steam<\/title>/)) {
+    return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
+  }
+
+  data["steam_id"] = sid;
+
+  let steamcn_api_jsonp = await steamcn_api_resp.text();
+  let steamcn_api_json = jsonp_parser(steamcn_api_jsonp);
+  if (steamcn_api_json["name_cn"]) data["name_chs"] = steamcn_api_json["name_cn"];
+
+  let $ = page_parser(steam_page_raw);
+
+  // 从网页中定位数据
+  let name_anchor = $("div.apphub_AppName") || $("span[itemprop=\"name\"]");  // 游戏名
+  let cover_anchor = $("img.game_header_image_full[src]");  // 游戏封面图
+  let detail_anchor = $("div.details_block");  // 游戏基本信息
+  let linkbar_anchor = $("a.linkbar"); // 官网
+  let language_anchor = $("table.game_language_options tr[class!=unsupported]");  // 支持语言
+  let tag_anchor = $("a.app_tag");  // 标签
+  let rate_anchor = $("div.user_reviews_summary_row");  // 游戏评价
+  let descr_anchor = $("div#game_area_description");  // 游戏简介
+  let sysreq_anchor = $("div.sysreq_contents > div.game_area_sys_req");  // 系统需求
+  let screenshot_anchor = $("div.screenshot_holder a");  // 游戏截图
+
+  data["cover"] = data["poster"] = cover_anchor ? cover_anchor.attr("src").replace(/^(.+?)(\?t=\d+)?$/, "$1") : "";
+  data["name"] = name_anchor ? name_anchor.text().trim() : "";
+  data["detail"] = detail_anchor ?
+    detail_anchor.eq(0).text()
+      .replace(/:[ 	\n]+/g, ": ")
+      .split("\n")
+      .map(x => x.trim())
+      .filter(x => x.length > 0)
+      .join("\n") : "";
+  data["tags"] = tag_anchor ? tag_anchor.map(function() {
+    return $(this).text().trim();
+  }).get() : [];
+  data["review"] = rate_anchor ? rate_anchor.map(function() {
+    return $(this).text().replace("：", ":").replace(/[ 	\n]{2,}/ig, " ").trim();
+  }).get() : [];
+  if (linkbar_anchor && linkbar_anchor.text().search("访问网站")) {
+    data["linkbar"] = linkbar_anchor.attr("href").replace(/^.+?url=(.+)$/, "$1");
+  }
+
+  const lag_checkcol_list = ["界面", "完全音频", "字幕"];
+  data["language"] = language_anchor ?
+    language_anchor
+      .slice(1, 4)  // 不要首行，不要不支持行 外的前三行
+      .map(function() {
+        let tag = $(this);
+        let tag_td_list = tag.find("td");
+        let lag_support_checkcol = [];
+        let lag = tag_td_list.eq(0).text().trim();
+
+        for (let i = 0; i < lag_checkcol_list.length; i++) {
+          let j = tag_td_list.eq(i + 1);
+          if (j.text().search("✔")) {
+            lag_support_checkcol.push(lag_checkcol_list[i]);
+          }
+        }
+
+        return `${lag}${lag_support_checkcol.length > 0 ? ` (${lag_support_checkcol.join(", ")})` : ""}`;
+      }).get() : [];
+
+  data["descr"] = descr_anchor ? html2bbcode(descr_anchor.html()).replace("[h2]关于这款游戏[/h2]", "").trim() : "";
+  data["screenshot"] = screenshot_anchor ? screenshot_anchor.map(function() {
+    let dic = $(this);
+    return dic.attr("href").replace(/^.+?url=(http.+?)\.[\dx]+(.+?)(\?t=\d+)?$/, "$1$2");
+  }).get() : [];
+
+  const os_dict = { "win": "Windows", "mac": "Mac OS X", "linux": "SteamOS + Linux" };
+  data["sysreq"] = sysreq_anchor ? sysreq_anchor.map(function() {
+    let tag = $(this);
+    let os_type = os_dict[tag.attr("data-os")];
+
+    let clone_tag = tag.clone();
+    clone_tag.html(tag.html().replace(/<br>/ig, "[br]"));
+
+    let sysreq_content = clone_tag
+      .text()
+      .split("\n").map(x => x.trim()).filter(x => x.length > 0).join("\n\n")  // 处理最低配置和最高配置之间的空白行
+      .split("[br]").map(x => x.trim()).filter(x => x.length > 0).join("\n");  // 处理配置内的分行
+
+    return `${os_type}\n${sysreq_content}`;
+  }).get() : [];
+
+  // 生成format
+  let descr = data["poster"] ? `[img]${data["poster"]}[/img]\n\n` : "";
+  descr += "【基本信息】\n\n";  // 基本信息为原来的baseinfo块
+  descr += data["name_chs"] ? `中文名: ${data["name_chs"]}\n` : "";
+  descr += data["detail"] ? `${data["detail"]}\n` : "";
+  descr += data["linkbar"] ? `官方网站: ${data["linkbar"]}\n` : "";
+  descr += data["steam_id"] ? `Steam页面: https://store.steampowered.com/app/${data["steam_id"]}/\n` : "";
+  descr += data["language"] ? `游戏语种: ${data["language"].join(" | ")}\n` : "";
+  descr += data["tags"] ? `标签: ${data["tags"].join(" | ")}\n` : "";
+  descr += data["review"] ? `\n${data["review"].join("\n")}\n` : "";
+  descr += '\n';
+  descr += data["descr"] ? `【游戏简介】\n\n${data["descr"]}\n\n` : "";
+  descr += data["sysreq"] ? `【配置需求】\n\n${data["sysreq"].join("\n")}\n\n` : "";
+  descr += data["screenshot"] ? `【游戏截图】\n\n${data["screenshot"].map(x => `[img]${x}[/img]`).join("\n")}\n\n` : "";
 
   data["format"] = descr;
   data["success"] = true;  // 更新状态为成功
