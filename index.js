@@ -194,7 +194,6 @@ async function gen_douban(sid) {
 
   let douban_page_raw = await db_page_resp.text();
   let douban_api_json = await db_api_resp.json();
-  let awards_page_raw = await awards_page_resp.text();
 
   // 对异常进行处理
   if (douban_api_json.msg) {
@@ -204,9 +203,8 @@ async function gen_douban(sid) {
   } else {
     // 解析页面
     let $ = page_parser(douban_page_raw);
-    let awards_page = page_parser(awards_page_raw);
-    let title = $("title").text().replace("(豆瓣)", "").trim();
 
+    let title = $("title").text().replace("(豆瓣)", "").trim();
     if (title.match(/页面不存在/)) {
       return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));  // FIXME 此时可能页面只是隐藏，而不是不存在，需要根据json信息进一步判断
     }
@@ -287,6 +285,8 @@ async function gen_douban(sid) {
     data["episodes"] = episodes = episodes_anchor[0] ? fetch_anchor(episodes_anchor) : "";
     data["duration"] = duration = duration_anchor[0] ? fetch_anchor(duration_anchor) : $("#info span[property=\"v:runtime\"]").text().trim();
 
+    let awards_page_raw = await awards_page_resp.text();
+    let awards_page = page_parser(awards_page_raw);
     data["awards"] = awards = awards_page("#content > div > div.article").html()
       .replace(/[ \n]/g, "")
       .replace(/<\/li><li>/g, "</li> <li>")
