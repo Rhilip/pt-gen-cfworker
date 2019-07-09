@@ -5,6 +5,11 @@
 基于 [BFDZ/Pt-Gen v0.4.7](https://github.com/BFDZ/PT-Gen/commit/950b85de16d9532e847a0756f165d1b29f09dd31) 改写，
 使之可以直接在Cloudflare Worker上使用。
 
+如果你没有构造环境，请直接复制使用 [build分支](https://github.com/Rhilip/pt-gen-cfworker/tree/build) 下的
+[script.js](https://github.com/Rhilip/pt-gen-cfworker/blob/build/script.js) 文件。
+
+否则请参照 `.Travis.yml` 文件构造方法，直接使用`wrangler`搭建Cloudflare-Worker。
+
 ## 支持资源链接
 
 | 资源来源 | 链接格式（Regexp） |
