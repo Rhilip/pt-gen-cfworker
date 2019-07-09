@@ -18,7 +18,6 @@ script:
   - cp wrangler.toml.sample wrangler.toml
   - sed -i "s/CF_ACCOUNT_ID/${CF_ACCOUNT_ID}/g" wrangler.toml
   - wrangler whoami
-  - wrangler build
   - wrangler publish
 
 after_success:
