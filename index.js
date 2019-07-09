@@ -313,26 +313,26 @@ async function gen_douban(sid) {
     });
 
     // 生成format
-    let descr = poster.length > 0 ? `[img]${poster}[/img]\n\n` : "";
-    descr += trans_title.length > 0 ? `◎译　　名　${trans_title}\n` : "";
-    descr += this_title.length > 0 ? `◎片　　名　${this_title}\n` : "";
-    descr += year.length > 0 ? `◎年　　代　${year.trim()}\n` : "";
-    descr += region.length > 0 ? `◎产　　地　${region}\n` : "";
-    descr += genre.length > 0 ? `◎类　　别　${genre.join(" / ")}\n` : "";
-    descr += language.length > 0 ? `◎语　　言　${language}\n` : "";
-    descr += playdate.length > 0 ? `◎上映日期　${playdate.join(" / ")}\n` : "";
-    descr += imdb_rating.length > 0 ? `◎IMDb评分  ${imdb_rating}\n` : "";
-    descr += imdb_link.length > 0 ? `◎IMDb链接  ${imdb_link}\n` : "";
-    descr += douban_rating.length > 0 ? `◎豆瓣评分　${douban_rating}\n` : "";
-    descr += douban_link.length > 0 ? `◎豆瓣链接　${douban_link}\n` : "";
-    descr += episodes.length > 0 ? `◎集　　数　${episodes}\n` : "";
-    descr += duration.length > 0 ? `◎片　　长　${duration}\n` : "";
-    descr += director.length > 0 ? `◎导　　演　${director}\n` : "";
-    descr += writer.length > 0 ? `◎编　　剧　${writer}\n` : "";
-    descr += cast.length > 0 ? `◎主　　演　${cast.replace(/\n/g, "\n" + "　".repeat(4) + "  　").trim()}\n` : "";
-    descr += tags.length > 0 ? `\n◎标　　签　${tags.join(" | ")}\n` : "";
-    descr += introduction.length > 0 ? `\n◎简　　介\n\n　　${introduction.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
-    descr += awards.length > 0 ? `\n◎获奖情况\n\n　　${awards.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
+    let descr = poster ? `[img]${poster}[/img]\n\n` : "";
+    descr += trans_title ? `◎译　　名　${trans_title}\n` : "";
+    descr += this_title ? `◎片　　名　${this_title}\n` : "";
+    descr += year ? `◎年　　代　${year.trim()}\n` : "";
+    descr += region ? `◎产　　地　${region}\n` : "";
+    descr += genre ? `◎类　　别　${genre.join(" / ")}\n` : "";
+    descr += language ? `◎语　　言　${language}\n` : "";
+    descr += playdate ? `◎上映日期　${playdate.join(" / ")}\n` : "";
+    descr += imdb_rating ? `◎IMDb评分  ${imdb_rating}\n` : "";
+    descr += imdb_link ? `◎IMDb链接  ${imdb_link}\n` : "";
+    descr += douban_rating ? `◎豆瓣评分　${douban_rating}\n` : "";
+    descr += douban_link ? `◎豆瓣链接　${douban_link}\n` : "";
+    descr += episodes ? `◎集　　数　${episodes}\n` : "";
+    descr += duration ? `◎片　　长　${duration}\n` : "";
+    descr += director ? `◎导　　演　${director}\n` : "";
+    descr += writer ? `◎编　　剧　${writer}\n` : "";
+    descr += cast ? `◎主　　演　${cast.replace(/\n/g, "\n" + "　".repeat(4) + "  　").trim()}\n` : "";
+    descr += tags ? `\n◎标　　签　${tags.join(" | ")}\n` : "";
+    descr += introduction ? `\n◎简　　介\n\n　　${introduction.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
+    descr += awards ? `\n◎获奖情况\n\n　　${awards.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
 
     data["format"] = descr.trim();
     data["success"] = true;  // 更新状态为成功
