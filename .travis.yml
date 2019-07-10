@@ -11,7 +11,7 @@ branches:
     - master
 
 before_install:
-  - cargo install wrangler
+  - cargo install wrangler || echo "wrangler already installed"
 
 install:
   - npm install
