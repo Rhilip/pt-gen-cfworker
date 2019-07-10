@@ -527,20 +527,15 @@ async function gen_bangumi(sid) {
    */
   data["cover"] = data["poster"] = cover_another ? ("https:" + cover_another.attr("href")).replace(/\/cover\/[lcmsg]\//, "/cover/l/") : "";
   data["story"] = story_another ? story_another.text().trim() : "";
-  data["staff"] = staff_another.find("li")
-    .slice(4, 4 + 15)   // 读取第4-19行  （假定bgm的顺序为中文名、话数、放送开始、放送星期...，对新番适用，较老番组可能不好  ，staff从第四个 导演 起算）
-    .map(function() {
+  data["staff"] = staff_another.find("li").map(function() {
       return $(this).text();
-    })
-    .get();
+    }).get();
 
   let bangumi_characters_page_raw = await bangumi_characters_resp.text();
   let bangumi_characters_page = page_parser(bangumi_characters_page_raw);
   let cast_actors = bangumi_characters_page("div#columnInSubjectA > div.light_odd > div.clearit");
 
-  data["cast"] = cast_actors
-    .slice(0, 9)   // 读取前9项cast信息
-    .map(function() {
+  data["cast"] = cast_actors.map(function() {
       let tag = bangumi_characters_page(this);
       let h2 = tag.find("h2");
       let char = (h2.find("span.tip").text() || h2.find("a").text()).replace(/\//, "").trim();
@@ -554,8 +549,10 @@ async function gen_bangumi(sid) {
   // 生成format
   let descr = (data["poster"] && data["poster"].length > 0) ? `[img]${data["poster"]}[/img]\n\n` : "";
   descr += (data["story"] && data["story"].length > 0) ? `[b]Story: [/b]\n\n${data["story"]}\n\n` : "";
-  descr += (data["staff"] && data["staff"].length > 0) ? `[b]Staff: [/b]\n\n${data["staff"].join("\n")}\n\n` : "";
-  descr += (data["cast"] && data["cast"].length > 0) ? `[b]Cast: [/b]\n\n${data["cast"].join("\n")}\n\n` : "";
+  // 读取第4-19x  （假定bgm的顺序为中文名、话数、放送开始、放送星期...，对新番适用，较老番组可能不好  ，staff从第四个 导演 起算）
+  descr += (data["staff"] && data["staff"].length > 0) ? `[b]Staff: [/b]\n\n${data["staff"].slice(4, 4 + 15).join("\n")}\n\n` : "";
+  // 读取前9项cast信息
+  descr += (data["cast"] && data["cast"].length > 0) ? `[b]Cast: [/b]\n\n${data["cast"].slice(0, 9).join("\n")}\n\n` : "";
   descr += (data["alt"] && data["alt"].length > 0) ? `(来源于 ${data["alt"]} )\n` : "";
 
   data["format"] = descr.trim();
