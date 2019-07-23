@@ -10,7 +10,7 @@ addEventListener("fetch", event => {
 
 // 常量定义
 const author_ = "Rhilip";
-const version_ = "0.4.7";
+const version_ = "0.4.8";
 
 const support_list = {
   // 注意value值中正则的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
@@ -778,7 +778,6 @@ async function gen_indienova(sid) {
   // 生成format
   let descr = data["cover"] ? `[img]${data["cover"]}[/img]\n\n` : "";
   descr += "【基本信息】\n\n";  // 基本信息为原来的baseinfo块
-
   descr += (data["chinese_title"] && data["chinese_title"].length > 0) ? `中文名称：${data["chinese_title"]}\n` : "";
   descr += (data["english_title"] && data["english_title"].length > 0) ? `英文名称：${data["english_title"]}\n` : "";
   descr += (data["another_title"] && data["another_title"].length > 0) ? `其他名称：${data["another_title"]}\n` : "";
@@ -786,6 +785,7 @@ async function gen_indienova(sid) {
   descr += (data["rate"] && data["rate"].length > 0) ? `评分：${data["rate"]}\n` : "";
   descr += (data["dev"] && data["dev"].length > 0) ? `开发商：${data["dev"].join(" / ")}\n` : "";
   descr += (data["pub"] && data["pub"].length > 0) ? `发行商：${data["pub"].join(" / ")}\n` : "";
+  descr += (data["intro_detail"] && data["intro_detail"].length > 0) ? `${data["intro_detail"].join("\n")}\n` : "";
   descr += (data["cat"] && data["cat"].length > 0) ? `标签：${data["cat"].slice(0, 8).join(" | ")}\n` : "";
   if ((data["links"] && data["links"].length > 0)) {
     let format_links = [];
