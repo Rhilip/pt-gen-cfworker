@@ -806,7 +806,7 @@ async function gen_indienova(sid) {
 }
 
 async function gen_epic(sid) {
-  let data = { site: "douban", sid: sid };
+  let data = { site: "epic", sid: sid };
 
   let [epic_api_resp] = await Promise.all([
     fetch(`https://www.epicgames.com/store/zh-CN/api/content/products/${sid}`)
