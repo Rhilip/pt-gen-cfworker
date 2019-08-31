@@ -10,7 +10,7 @@ addEventListener("fetch", event => {
 
 // 常量定义
 const author_ = "Rhilip";
-const version_ = "0.4.8";
+const version_ = "0.4.9";
 
 const support_list = {
   // 注意value值中正则的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
@@ -44,6 +44,8 @@ const default_body = {
   "version": version_,   // 版本
   "generate_at": 0   // 生成时间（毫秒级时间戳），可以通过这个值与当前时间戳比较判断缓存是否应该过期
 };
+
+const NONE_EXIST_ERROR = "The corresponding resource does not exist.";
 
 /**
  * Fetch and log a request
@@ -206,7 +208,7 @@ async function gen_douban(sid) {
 
     let title = $("title").text().replace("(豆瓣)", "").trim();
     if (title.match(/页面不存在/)) {
-      return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));  // FIXME 此时可能页面只是隐藏，而不是不存在，需要根据json信息进一步判断
+      return makeJsonResponse(Object.assign(data, { error: NONE_EXIST_ERROR }));  // FIXME 此时可能页面只是隐藏，而不是不存在，需要根据json信息进一步判断
     }
 
     // 元素获取方法
@@ -224,6 +226,23 @@ async function gen_douban(sid) {
     let director, writer, cast;
     let tags, introduction, awards;
 
+    // 提前imdb相关请求
+    let imdb_link_anchor = $("div#info a[href*='://www.imdb.com/title/tt']");
+    let has_imdb = imdb_link_anchor.length > 0;
+    if (has_imdb) {
+      data["imdb_link"] = imdb_link = imdb_link_anchor.attr("href").replace(/(\/)?$/, "/").replace("http://", "https://");
+      data["imdb_id"] = imdb_id = imdb_link.match(/tt\d+/)[0];
+      let imdb_api_resp = await fetch(`https://p.media-imdb.com/static-content/documents/v1/title/${imdb_id}/ratings%3Fjsonp=imdb.rating.run:imdb.api.title.ratings/data.json`);
+      let imdb_api_raw = await imdb_api_resp.text();
+      let imdb_json = jsonp_parser(imdb_api_raw);
+
+      imdb_average_rating = imdb_json["resource"]["rating"];
+      imdb_votes = imdb_json["resource"]["ratingCount"];
+      if (imdb_average_rating && imdb_votes) {
+        data["imdb_rating"] = imdb_rating = `${imdb_average_rating}/10 from ${imdb_votes} users`;
+      }
+    }
+    
     let chinese_title = data["chinese_title"] = title;
     let foreign_title = data["foreign_title"] = $("span[property=\"v:itemreviewed\"]").text().replace(data["chinese_title"], "").trim();
 
@@ -250,7 +269,6 @@ async function gen_douban(sid) {
     let language_anchor = $("#info span.pl:contains(\"语言\")");  //语言
     let episodes_anchor = $("#info span.pl:contains(\"集数\")");  //集数
     let duration_anchor = $("#info span.pl:contains(\"单集片长\")");  //片长
-    let has_imdb = $("div#info a[href^='http://www.imdb.com/title/tt']").length > 0;
 
     data["year"] = year = " " + $("#content > h1 > span.year").text().substr(1, 4);
     data["region"] = region = regions_anchor[0] ? fetch_anchor(regions_anchor).split(" / ") : "";
@@ -266,21 +284,6 @@ async function gen_douban(sid) {
     }).toArray().sort(function(a, b) {//按上映日期升序排列
       return new Date(a) - new Date(b);
     });
-
-    if (has_imdb) {
-      let imdb_link_anchor = $("#info span.pl:contains(\"IMDb链接\")");
-      data["imdb_link"] = imdb_link = imdb_link_anchor.next().attr("href").replace(/(\/)?$/, "/").replace("http://", "https://");
-      data["imdb_id"] = imdb_id = imdb_link.match(/tt\d+/)[0];
-      let imdb_api_resp = await fetch(`https://p.media-imdb.com/static-content/documents/v1/title/${imdb_id}/ratings%3Fjsonp=imdb.rating.run:imdb.api.title.ratings/data.json`);
-      let imdb_api_raw = await imdb_api_resp.text();
-      let imdb_json = jsonp_parser(imdb_api_raw);
-
-      imdb_average_rating = imdb_json["resource"]["rating"];
-      imdb_votes = imdb_json["resource"]["ratingCount"];
-      if (imdb_average_rating && imdb_votes) {
-        data["imdb_rating"] = imdb_rating = `${imdb_average_rating}/10 from ${imdb_votes} users`;
-      }
-    }
 
     data["episodes"] = episodes = episodes_anchor[0] ? fetch_anchor(episodes_anchor) : "";
     data["duration"] = duration = duration_anchor[0] ? fetch_anchor(duration_anchor) : $("#info span[property=\"v:runtime\"]").text().trim();
@@ -358,7 +361,7 @@ async function gen_imdb(sid) {
   let imdb_page_raw = await imdb_page_resp.text();
 
   if (imdb_page_raw.match(/404 Error - IMDb/)) {
-    return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
+    return makeJsonResponse(Object.assign(data, { error: NONE_EXIST_ERROR }));
   }
 
   let $ = page_parser(imdb_page_raw);
@@ -508,7 +511,7 @@ async function gen_bangumi(sid) {
   let bangumi_page_raw = await bangumi_page_resp.text();
 
   if (bangumi_page_raw.match(/呜咕，出错了/)) {
-    return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
+    return makeJsonResponse(Object.assign(data, { error: NONE_EXIST_ERROR }));
   }
 
   data["alt"] = bangumi_link;
@@ -576,7 +579,7 @@ async function gen_steam(sid) {
 
   // 不存在的资源会被302到首页，故检查标题
   if (steam_page_raw.match(/<title>(欢迎来到|Welcome to) Steam<\/title>/)) {
-    return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
+    return makeJsonResponse(Object.assign(data, { error: NONE_EXIST_ERROR }));
   }
 
   data["steam_id"] = sid;
@@ -691,7 +694,7 @@ async function gen_indienova(sid) {
 
   // 检查标题看对应资源是否存在
   if (indienova_page_raw.match(/出现错误/)) {
-    return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
+    return makeJsonResponse(Object.assign(data, { error: NONE_EXIST_ERROR }));
   }
 
   let $ = page_parser(indienova_page_raw);
@@ -813,7 +816,7 @@ async function gen_epic(sid) {
   ]);
 
   if ((await epic_api_resp.status) === 404) {  // 当接口返回404时内容不存在，200则继续解析
-    return makeJsonResponse(Object.assign(data, { error: "The corresponding resource does not exist." }));
+    return makeJsonResponse(Object.assign(data, { error: NONE_EXIST_ERROR }));
   }
 
   let epic_api_json = await epic_api_resp.json();
