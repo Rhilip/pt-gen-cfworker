@@ -59,33 +59,34 @@ async function handle(event) {
   const cache = caches.default; // 定义缓存
   let response = await cache.match(request);
 
-  if (!response) {
+  if (!response) { // 未命中缓存
     // 使用URI() 解析request.url
     let uri = new URL(request.url);
 
-    // 不存在任何请求字段，且在根目录，返回默认页面
-    if (uri.pathname == '/' && uri.search == '') {
-      response = makeIndexResponse();
-    } else {
-      let site, sid;
-
-      // 请求字段 `&url=` 存在
-      if (uri.searchParams.get("url")) {
-        let url_ = uri.searchParams.get("url");
-        for (let site_ in support_list) {
-          let pattern = support_list[site_];
-          if (url_.match(pattern)) {
-            site = site_;
-            sid = url_.match(pattern)[1];
-            break;
-          }
-        }
+    try {
+      // 不存在任何请求字段，且在根目录，返回默认页面（HTML）
+      if (uri.pathname == '/' && uri.search == '') {
+        response = makeIndexResponse();
       } else {
-        site = uri.searchParams.get("site");
-        sid = uri.searchParams.get("sid");
-      }
+        // 其他的请求均应视为ajax请求，返回JSON
+        let site, sid;
 
-      try {
+        // 请求字段 `&url=` 存在
+        if (uri.searchParams.get("url")) {
+          let url_ = uri.searchParams.get("url");
+          for (let site_ in support_list) {
+            let pattern = support_list[site_];
+            if (url_.match(pattern)) {
+              site = site_;
+              sid = url_.match(pattern)[1];
+              break;
+            }
+          }
+        } else {
+          site = uri.searchParams.get("site");
+          sid = uri.searchParams.get("sid");
+        }
+
         // 如果site和sid不存在的话，提前返回
         if (site == null || sid == null) {
           response = makeJsonResponse({
@@ -118,16 +119,16 @@ async function handle(event) {
             });
           }
         }
-        // 添加缓存 （ 此处如果response如果为undefined的话会抛出错误
-        event.waitUntil(cache.put(request, response.clone()));
-      } catch (e) {
-        response = makeJsonResponse({
-          error: `Internal Error, Please contact @${AUTHOR}. Exception: ${e.message}`
-        });
-        // 当发生Internal Error的时候不应该进行cache
       }
-    }
 
+      // 添加缓存，此处如果response如果为undefined的话会抛出错误
+      event.waitUntil(cache.put(request, response.clone()));
+    } catch (e) {
+      response = makeJsonResponse({
+        error: `Internal Error, Please contact @${AUTHOR}. Exception: ${e.message}`
+      });
+      // 当发生Internal Error的时候不应该进行cache
+    }
   }
 
   return response;
