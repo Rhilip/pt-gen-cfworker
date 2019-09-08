@@ -66,7 +66,7 @@ async function handle(event) {
     try {
       // 不存在任何请求字段，且在根目录，返回默认页面（HTML）
       if (uri.pathname == '/' && uri.search == '') {
-        response = makeIndexResponse();
+        response = await makeIndexResponse();
       } else {
         // 其他的请求均应视为ajax请求，返回JSON
         let site, sid;
