@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="description" content="PT Gen">
+    <meta name="author" content="Rhilip">
+    <title>PT Gen</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha256-916EbMg70RQy9LHiGkXzG8hSg9EdNy97GazNG/aiY1w=" crossorigin="anonymous">
+
+    <style type="text/css">
+body{padding-top:50px}
+.navbar-fixed-top{border:0}
+.main{padding:20px;margin-top:0}
+@media (min-width:768px){.main{padding-right:40px;padding-left:40px}}
+#input_value{width:480px}
+.zero-clipboard{position:relative}
+.btn-clipboard{position:absolute;top:8px;right:21px;z-index:10;display:block;padding:5px 8px;font-size:12px;color:#767676;cursor:pointer;background-color:#fff;border:1px solid #e1e1e8;border-radius:0 4px 0 4px}
+ul.timeline{list-style-type:none;position:relative}
+ul.timeline:before{content:' ';background:#d4d9df;display:inline-block;position:absolute;left:29px;width:2px;height:100%;z-index:400}
+ul.timeline>li{margin:20px 0;padding-left:20px}
+ul.timeline>li:before{content:' ';background:white;display:inline-block;position:absolute;border-radius:50%;border:3px solid #22c0e8;left:20px;width:20px;height:20px;z-index:400}
+    </style>
+
+    <!--[if lt IE 9]>
+    <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js" integrity="sha256-9uAoNWHdszsUDhSXf/rVcWOqKPfi5/8V5R4UdbZle2A=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js" integrity="sha256-nwhzW/P9gnvWMPOm84MK8BzQRRMdi8iutxMuYsYcOgw=" crossorigin="anonymous"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar"
+                    aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="#">PT Gen</a>
+            </div>
+            <div id="navbar" class="navbar-collapse collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="//github.com/Rhilip/pt-gen-cfworker" target="_blank">Docs</a></li>
+                    <li><a href="//blog.rhilip.info" target="_blank">Powered By @Rhilip</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container-fluid main">
+        <div class="row">
+            <div class="col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3">
+                <div>
+                    <div class="form-inline">
+                        <div class="form-group">
+                            <label class="sr-only" for="input_value">Input value</label>
+                            <input type="text" class="form-control"
+                                placeholder="名称或豆瓣、IMDb、Bangumi、Steam、indienova、Epic等资源链接" id="input_value" />
+                        </div>
+                        <button class="btn btn-success" id="query_btn">查询</button>
+                        <div class="checkbox" id="force_douban_div" style="display: none;">
+                            <label for="force_douban" class="checkbox"></label>
+                            <input type="checkbox" class="form-control" id="force_douban" checked="checked" /> 通过豆瓣查询
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div id="gen_help" style="display: none"></div>
+                <div id="gen_out">
+                    <div class="zero-clipboard">
+                        <button class="btn btn-clipboard" data-clipboard-target="#movie_info">复制</button>
+                    </div>
+                    <textarea class="form-control" rows=22 id="movie_info"></textarea>
+                </div>
+                <hr>
+                <hr>
+                <div id="gen_replace">
+                    <h4>相关替代</h4>
+                    此处列出可以替代本平台的其他应用，以便在 <code>Pt-Gen</code> 失效或返回数据陈旧时使用
+                    <ul style="margin-top: 10px">
+                        <li><b><a href="https://github.com/Rhilip/pt-gen-cfworker" target="_blank">Rhilip/pt-gen-cfworker</a></b>：构建在Cloudflare Worker上的Pt-Gen分支</li>
+                        <li><b><a href="https://github.com/BFDZ/PT-Gen" target="_blank">BFDZ/Pt-Gen</a></b> :
+                            <a href="https://www.bfdz.ink/tools/ptgen"
+                                target="_blank">https://www.bfdz.ink/tools/ptgen</a> ,
+                            公开维护的Pt-Gen独立分支</li>
+                        <li>豆瓣： <a href="https://greasyfork.org/en/scripts/38878" target="_blank">电影信息查询脚本</a> 或
+                            <a href="https://greasyfork.org/scripts/329484" target="_blank">豆瓣资源下载大师</a></li>
+                        <li>Bangumi： Bangumi Info Export <a href="https://git.io/fjm3l" target="_blank">脚本</a>，
+                            <a href="https://bgm.tv/dev/app/103" target="_blank">应用平台</a></li>
+                    </ul>
+                </div>
+                <div class='hidden'><span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>    
+    <script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.0/dist/clipboard.min.js" integrity="sha256-meF2HJJ2Tcruwz3z4XcxYDRMxKprjdruBHc3InmixCQ=" crossorigin="anonymous"></script>
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <script>   // 脚本查询相关
+        function jsonp(url, arg, fn) {
+            let srpt = document.createElement('script');
+            let funName = 'fun_' + Math.random().toString().substr(3);
+
+            let queryString = '';
+            for (let key in arg) {
+                queryString += key + '=' + arg[key] + '&'
+            }
+            url += '?' + queryString + 'callback=' + funName;
+
+            window[funName] = fn;
+            srpt.src = url;
+            document.body.appendChild(srpt);
+        }
+
+        const doubanEntApiKeys = [
+            "0dad551ec0f84ed02907ff5c42e8ec70",
+            "02646d3fb69a52ff072d47bf23cef8fd",
+            "07c78782db00a121175696889101e363"
+        ];
+
+        function getDoubanEntApiKey() {  // 随机获取一个key
+            return doubanEntApiKeys[Math.floor(Math.random() * doubanEntApiKeys.length)];
+        }
+
+        $(function () {
+            let query_btn = $("#query_btn");
+            let gen_help = $("#gen_help");
+            let gen_out = $("#gen_out");
+            let out_textarea = $("#movie_info");
+            let input_btn = $("#input_value");
+            let api_select = $('#api_select');
+
+            query_btn.disable = function () {
+                query_btn.attr("disabled", true);
+                query_btn.html("查询中");
+            };
+
+            query_btn.enable = function () {
+                query_btn.removeAttr("disabled");
+                query_btn.html("查询");
+            };
+
+            input_btn.on('input change', function () {
+                if (input_btn.val().match(/^http/)) {
+                    $('#api_select_div:hidden').show();
+                }
+                if (input_btn.val().match(/imdb/)) {
+                    $('#force_douban_div').show();
+                } else {
+                    $('#force_douban_div').hide();
+                }
+            });
+
+            query_btn.click(function () {
+                gen_help.hide();
+                gen_out.show();
+                let input_value = input_btn.val();
+                if (input_value.length === 0) {
+                    alert("空字符，请检查输入");
+                } else if (/^http/.test(input_value)) {
+                    query_btn.disable();
+
+                    let param = {
+                        url: input_value
+                    };
+                    if (input_value.match(/imdb/) && $('#force_douban').prop('checked')) {
+                        let sid = input_value.match(/tt\d+/)[0];
+                        param = {
+                            site: 'douban',
+                            sid: sid
+                        }
+                    }
+
+                    $.getJSON('/', param).success(function (data) {
+                        out_textarea.val(data["success"] === false ? data["error"] : data["format"]);
+                    }).fail(function (jqXHR) {
+                        alert(jqXHR.status === 429 ? 'Met Rate Limit, Retry later~' : "Error occured!");
+                    }).complete(function () {
+                        query_btn.enable();
+                    });
+                } else {  // Search from Douban
+                    gen_help.show();
+                    gen_out.hide();
+                    jsonp("https://api.douban.com/v2/movie/search", {
+                        q: input_value,
+                        apikey: getDoubanEntApiKey()
+                    }, function (resj) {
+                        gen_help.html(resj.subjects.reduce((accumulator, currentValue) => {
+                            return accumulator += `<tr><td>${currentValue.year}</td><td>${currentValue.subtype}</td><td>${currentValue.title}</td><td><a href='${currentValue.alt}' target='_blank'>${currentValue.alt}</a></td><td><a href='javascript:void(0);' class="gen-search-choose" data-url="${currentValue.alt}">选择</a></td></tr>`;
+                        }, "<table id='gen_help_table' class='table table-striped table-hover'><thead><tr><th>年代</th><th>类别</th><th>标题</th><th>豆瓣链接</th><th>行为</th></tr></thead><tbody>"));
+                        $("a.gen-search-choose").click(function () {
+                            let tag = $(this);
+                            input_btn.val(tag.attr("data-url"));
+                            query_btn.click();
+                        });
+                    });
+                }
+            });
+        });
+    </script>
+    <script>   // 页面复制相关
+        new ClipboardJS('.btn-clipboard');
+    </script>
+</body>
+</html>
