@@ -9,9 +9,9 @@ addEventListener("fetch", event => {
 });
 
 // 常量定义
-const author_ = "Rhilip";
-const version_ = "0.4.9";
-const index_ = "https://raw.githubusercontent.com/Rhilip/pt-gen-cfworker/master/index.html";
+const AUTHOR = "Rhilip";
+const VERSION = "0.4.9";
+const INDEX = "https://raw.githubusercontent.com/Rhilip/pt-gen-cfworker/master/index.html";
 
 const support_list = {
   // 注意value值中正则的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
@@ -41,8 +41,8 @@ const default_body = {
   "success": false, // 请求是否成功，客户端应该首先检查该字段
   "error": null, // 如果请求失败，此处为失败原因
   "format": "", // 使用BBCode格式整理的简介
-  "copyright": `Powered by @${author_}`, // 版权信息
-  "version": version_, // 版本
+  "copyright": `Powered by @${AUTHOR}`, // 版权信息
+  "version": VERSION, // 版本
   "generate_at": 0 // 生成时间（毫秒级时间戳），可以通过这个值与当前时间戳比较判断缓存是否应该过期
 };
 
@@ -63,8 +63,8 @@ async function handle(event) {
     // 使用URI() 解析request.url
     let uri = new URL(request.url);
 
-    // 不存在任何请求字段，返回默认页面
-    if (uri.search == '') {
+    // 不存在任何请求字段，且在根目录，返回默认页面
+    if (uri.pathname == '/' && uri.search == '') {
       response = makeIndexResponse();
     } else {
       let site, sid;
@@ -122,7 +122,7 @@ async function handle(event) {
         event.waitUntil(cache.put(request, response.clone()));
       } catch (e) {
         response = makeJsonResponse({
-          error: `Internal Error, Please contact @${author_}. Exception: ${e.message}`
+          error: `Internal Error, Please contact @${AUTHOR}. Exception: ${e.message}`
         });
         // 当发生Internal Error的时候不应该进行cache
       }
@@ -934,7 +934,8 @@ async function gen_epic(sid) {
 }
 
 async function makeIndexResponse() {
-  let index = await fetch(index_).text();
+  let index_rep = await fetch(INDEX);
+  let index = await index_rep.text();
   return new Response(index, {
     headers: {
       'Content-Type': 'text/html'
