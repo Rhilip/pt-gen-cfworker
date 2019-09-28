@@ -54,6 +54,11 @@ const NONE_EXIST_ERROR = "The corresponding resource does not exist.";
  */
 async function handle(event) {
   const request = event.request; // 获取请求
+  
+  // 处理OPTIONS
+  if (request.method === "OPTIONS") {
+    return handleOptions(request);
+  }
 
   // 检查缓存，命中则直接返回
   const cache = caches.default; // 定义缓存
@@ -135,6 +140,28 @@ async function handle(event) {
 }
 
 //-    辅助方法      -//
+function handleOptions(request) {
+  if (request.headers.get("Origin") !== null &&
+    request.headers.get("Access-Control-Request-Method") !== null &&
+    request.headers.get("Access-Control-Request-Headers") !== null) {
+    // Handle CORS pre-flight request.
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS",
+        "Access-Control-Allow-Headers": "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers"
+      }
+    })
+  } else {
+    // Handle standard OPTIONS request.
+    return new Response(null, {
+      headers: {
+        "Allow": "GET, HEAD, OPTIONS",
+      }
+    })
+  }
+}
 
 // 返回Json请求
 function makeJsonResponse(body_update) {
