@@ -11,7 +11,7 @@ addEventListener("fetch", event => {
 // 常量定义
 const AUTHOR = "Rhilip";
 const VERSION = "0.4.9";
-const INDEX = "https://raw.githubusercontent.com/Rhilip/pt-gen-cfworker/master/index.html";
+const INDEX = "https://rhilip.github.io/pt-gen-cfworker/index.html";
 
 const support_list = {
   // 注意value值中正则的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
