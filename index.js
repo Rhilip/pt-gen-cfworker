@@ -648,7 +648,7 @@ async function gen_steam(sid) {
         "Cookies": "lastagecheckage=1-January-1975; birthtime=157737601; mature_content=1; wants_mature_content=1; Steam_Language=schinese"
       }
     }),
-    fetch(`https://steamdb.steamcn.com/app/${sid}/data.js?v=38`)
+    fetch(`https://steamdb.keylol.com/app/${sid}/data.js?v=38`)
   ]);
 
   let steam_page_raw = await steam_page_resp.text();
