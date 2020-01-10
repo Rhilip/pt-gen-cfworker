@@ -361,7 +361,8 @@ async function gen_douban(sid) {
     data["douban_rating"] = douban_rating = `${douban_average_rating}/10 from ${douban_votes} users`;
 
     data["introduction"] = introduction = douban_api_json.summary.replace(/^None$/g, "暂无相关剧情介绍");
-    data["poster"] = poster = douban_api_json.image.replace(/s(_ratio_poster|pic)/g, "l")
+    data["poster"] = poster = douban_api_json.image
+      .replace(/s(_ratio_poster|pic)/g, "l$1")
       .replace("img3", "img1");
 
     data["director"] = director = douban_api_json.attrs.director ? douban_api_json.attrs.director.join(" / ") : "";
