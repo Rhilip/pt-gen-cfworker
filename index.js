@@ -19,7 +19,7 @@ const support_list = {
   "bangumi": /(?:https?:\/\/)?(?:bgm\.tv|bangumi\.tv|chii\.in)\/subject\/(\d+)\/?/,
   "steam": /(?:https?:\/\/)?(?:store\.)?steam(?:powered|community)\.com\/app\/(\d+)\/?/,
   "indienova": /(?:https?:\/\/)?indienova\.com\/game\/(\S+)/,
-  "epic": /(?:https?:\/\/)?www\.epicgames\.com\/store\/[a-z]{2}-[A-Z]{2}\/product\/(\S+)\/\S?/
+  "epic": /(?:https?:\/\/)?www\.epicgames\.com\/store\/[a-zA-Z-]+\/product\/(\S+)\/\S?/
 };
 
 const support_site_list = Object.keys(support_list);
@@ -964,7 +964,7 @@ async function gen_epic(sid) {
     sid: sid
   };
 
-  epic_api_resp = await fetch(`https://www.epicgames.com/store/zh-CN/api/content/products/${sid}`);
+  epic_api_resp = await fetch(`https://store-content.ak.epicgames.com/api/zh-CN/content/products/${sid}`);
   if ((await epic_api_resp.status) === 404) { // 当接口返回404时内容不存在，200则继续解析
     return makeJsonResponse(Object.assign(data, {
       error: NONE_EXIST_ERROR
