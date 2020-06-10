@@ -10,7 +10,7 @@ addEventListener("fetch", event => {
 
 // 常量定义
 const AUTHOR = "Rhilip";
-const VERSION = "0.5.2";
+const VERSION = "0.5.3";
 
 const support_list = {
   // 注意value值中正则的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
@@ -68,7 +68,7 @@ async function handle(event) {
 
     try {
       // 不存在任何请求字段，且在根目录，返回默认页面（HTML）
-      if (uri.pathname == '/' && uri.search == '') {
+      if (uri.pathname === '/' && uri.search === '') {
         response = await makeIndexResponse();
       } else {
         // 其他的请求均应视为ajax请求，返回JSON
@@ -131,7 +131,7 @@ async function handle(event) {
         error: `Internal Error, Please contact @${AUTHOR}. Exception: ${e.message}`
       };
       
-      if (uri.searchParams.get("debug") == '1') {
+      if (uri.searchParams.get("debug") === '1') {
         err_return['debug'] = debug_get_err(e, request);
       }
 
@@ -357,9 +357,11 @@ async function gen_douban(sid) {
       let imdb_api_raw = await imdb_api_resp.text();
       let imdb_json = jsonp_parser(imdb_api_raw);
 
-      imdb_average_rating = imdb_json["resource"]["rating"];
-      imdb_votes = imdb_json["resource"]["ratingCount"];
+      imdb_average_rating = imdb_json["resource"]["rating"] || 0;
+      imdb_votes = imdb_json["resource"]["ratingCount"] || 0;
       if (imdb_average_rating && imdb_votes) {
+        data["imdb_votes"] = imdb_votes;
+        data["imdb_rating_average"] = imdb_average_rating;
         data["imdb_rating"] = imdb_rating = `${imdb_average_rating}/10 from ${imdb_votes} users`;
       }
     }
@@ -892,9 +894,11 @@ async function gen_indienova(sid) {
 
   // 提取制作与发行商
   let pubdev = $("div#tabs-devpub ul[class^=\"db-companies\"]");
+  // noinspection JSUnusedLocalSymbols
   data["dev"] = pubdev.eq(0).text().trim().split("\n").map(function (value, index, array) {
     return value.trim();
   });
+  // noinspection JSUnusedLocalSymbols
   data["pub"] = pubdev.length === 2 ? pubdev.eq(1).text().trim().split("\n").map(function (value, index, array) {
     return value.trim();
   }) : [];
@@ -977,23 +981,43 @@ async function gen_epic(sid) {
   let page = epic_api_json["pages"][0];
 
   data["name"] = page["productName"]; // 游戏名称
-  data["epic_link"] = `https://www.epicgames.com/store${page["_urlPattern"]}`; // 商店链接
+  data["epic_link"] = `https://www.epicgames.com/store/zh-CN/product/${sid}/home`; // 商店链接
 
   data["desc"] = page["data"]["about"]["description"]; // 游戏简介
   data["poster"] = data["logo"] = page["data"]["hero"]["logoImage"]["src"]; // 游戏logo
   data["screenshot"] = (page["data"]["gallery"]["galleryImages"] || []).map(x => x["src"]); // 游戏截图
 
-  // 语言 最低配置 推荐配置 评级
-  let requirements = page["data"]["requirements"];
-  data["language"] = requirements["languages"];
+  let requirements = page["data"]["requirements"] || [];
 
+  // 语言
+  let languages = [];
+  for (let i = 0; i < requirements["languages"].length; i++) {
+    let lang = requirements["languages"][i];
+    if (lang.search(':') === -1 && lang.search("：") === -1 && languages.length) {
+      // ['语音：英语', '法语', '德语', ..., '文本：繁体中文、简体中文', ' 2020 年 1 月 30 日即将上线：日语']
+      let last = languages.length - 1;
+      languages[last] += `、${lang}`;
+    } else if (lang.search('-') > -1) {
+      // ['语音：英语、法语、意大利语、德语、西班牙语、日语、韩语、简体中文 - 文本：俄语、葡萄牙语（巴西）']
+      let l = lang.split('-');
+      for (let j = 0; j < l.length; j++) {
+        languages.push(l[j].trim());
+      }
+    } else {
+      // 正常情况
+      languages.push(lang);
+    }
+  }
+  data["language"] = languages;
+
+  // 最低配置 推荐配置 评级
   data["min_req"] = {};
   data["max_req"] = {};
   requirements["systems"].forEach(function (i) {
     let systemType = i["systemType"];
     let details = i["details"];
-    data["min_req"][systemType] = details.map(x => `${x["title"]}: ${x["minimum"]}`);
-    data["max_req"][systemType] = details.map(x => `${x["title"]}: ${x["recommended"]}`);
+    data["min_req"][systemType] = details.map(x => `${x["title"]}: ${x["minimum"] || ''}`);
+    data["max_req"][systemType] = details.map(x => `${x["title"]}: ${x["recommended"] || ''}`);
   });
   data["level"] = requirements["legalTags"].map(x => x["src"]);
 
@@ -1014,6 +1038,7 @@ async function gen_epic(sid) {
     if (Object.entries(data[req]).length === 0 && data[req].constructor === Object) continue;
     descr += `${req_list[req]}\n\n`;
     for (let system in data[req]) {
+      // noinspection JSUnfilteredForInLoop
       descr += `${system}\n${data[req][system].join("\n")}\n`;
     }
     descr += "\n\n";
@@ -1114,9 +1139,8 @@ ul.timeline>li:before{content:' ';background:white;display:inline-block;position
                 <div class="zero-clipboard">
                     <button class="btn btn-clipboard" data-clipboard-target="#movie_info">复制</button>
                 </div>
-                <textarea class="form-control" rows=22 id="movie_info"></textarea>
+                <textarea class="form-control" rows="22" id="movie_info"></textarea>
             </div>
-            <hr>
             <hr>
             <div id="gen_replace">
                 <h4>相关替代</h4>
