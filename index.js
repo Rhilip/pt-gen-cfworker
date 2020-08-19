@@ -298,14 +298,16 @@ async function gen_douban(sid) {
     }));
   } else if (douban_page_raw.match(/检测到有异常请求/)) { // 真的会有这种可能吗？
     return makeJsonResponse(Object.assign(data, {
-      error: "GenHelp was temporary banned by Douban, Please wait."
+      error: "GenHelp was temporary banned by Douban, Please wait...."
     }));
   } else {
     // 解析页面
     let $ = page_parser(douban_page_raw);
 
     let title = $("title").text().replace("(豆瓣)", "").trim();
-    let ld_json = JSON.parse($('head > script[type="application/ld+json"]').text().replace(/\n/ig,''));
+
+    // 从ld+json中获取原来API返回的部分信息
+    let ld_json = JSON.parse($('head > script[type="application/ld+json"]').html().replace(/\n/ig,''));
 
     // 元素获取方法
     let fetch_anchor = function (anchor) {
