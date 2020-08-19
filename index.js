@@ -1100,7 +1100,6 @@ const INDEX = `
         .navbar-fixed-top{border:0}
         .main{padding:20px;margin-top:0}
         @media (min-width:768px){.main{padding-right:40px;padding-left:40px}}
-        #input_value{width:480px}
         .zero-clipboard{position:relative}
         .btn-clipboard{position:absolute;top:8px;right:21px;z-index:10;display:block;padding:5px 8px;font-size:12px;color:#767676;cursor:pointer;background-color:#fff;border:1px solid #e1e1e8;border-radius:0 4px 0 4px}
         ul.timeline{list-style-type:none;position:relative}
@@ -1144,7 +1143,9 @@ const INDEX = `
                     <div class="form-group">
                         <label class="sr-only" for="input_value">Input value</label>
                         <input type="text" class="form-control"
-                               placeholder="名称或豆瓣、IMDb、Bangumi、Steam、indienova、Epic等资源链接" id="input_value"/>
+                               placeholder="名称或豆瓣、IMDb、Bangumi、Steam、indienova、Epic等资源链接" id="input_value"
+                               style="width: 460px"
+                        />
                     </div>
                     <div class="form-group" id="search_source" style="display: none">
                         <label class="sr-only" for="search_source_val"></label>
@@ -1189,6 +1190,7 @@ const INDEX = `
     let query_btn = $("#query_btn");
     let gen_help = $("#gen_help");
     let gen_out = $("#gen_out");
+    let movie_info = $("#movie_info");
     let input_btn = $("#input_value");
     let search_source = $("#search_source");
 
@@ -1197,9 +1199,11 @@ const INDEX = `
       if (/^http/.test(input_value) || input_value === '') {
         query_btn.html("查询");
         search_source.hide();
+        input_btn.css({width:'480px'});
       } else {
         query_btn.html("搜索");
         search_source.show();
+        input_btn.css({width:'460px'});
       }
     });
 
@@ -1227,7 +1231,7 @@ const INDEX = `
         $.getJSON('/', {
           url: input_value
         }).success(function (data) {
-          $("#movie_info").val(data["success"] === false ? data["error"] : data["format"]);
+          movie_info.val(data["success"] === false ? data["error"] : data["format"]);
         }).fail(function (jqXHR) {
           alert(jqXHR.status === 429 ? 'Met Rate Limit, Retry later~' : "Error occured!");
         }).complete(function () {
