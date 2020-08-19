@@ -1241,7 +1241,8 @@ const INDEX = `
           search: input_value,
           source: $('#search_source_val').val()
         }).success(function (data) {
-          gen_help.html(resj.subjects.reduce((accumulator, currentValue) => {
+          let subjects = data.data;
+          gen_help.html(subjects.reduce((accumulator, currentValue) => {
             return accumulator += "<tr><td>" + currentValue.year + "</td><td>" + currentValue.subtype + "</td><td>" + currentValue.title + "</td><td><a href='" + currentValue.link + "' target='_blank'>" + currentValue.link + "</a></td><td><a href='javascript:void(0);' class='gen-search-choose' data-url='" + currentValue.alt + "'>选择</a></td></tr>";
           }, "<table id='gen_help_table' class='table table-striped table-hover'><thead><tr><th>年代</th><th>类别</th><th>标题</th><th>资源链接</th><th>行为</th></tr></thead><tbody>"));
           $("a.gen-search-choose").click(function () {
