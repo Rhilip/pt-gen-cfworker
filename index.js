@@ -10,7 +10,7 @@ addEventListener("fetch", event => {
 
 // 常量定义
 const AUTHOR = "Rhilip";
-const VERSION = "0.6.0";
+const VERSION = "0.6.1";
 
 const support_list = {
   // 注意value值中正则的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
@@ -23,13 +23,6 @@ const support_list = {
 };
 
 const support_site_list = Object.keys(support_list);
-
-const douban_apikey_list = [
-  "02646d3fb69a52ff072d47bf23cef8fd",
-  "0b2bdeda43b5688921839c8ecb20399b",
-  "0dad551ec0f84ed02907ff5c42e8ec70",
-  "0df993c66c0c636e29ecbb5344252a4a"
-];
 
 /** 公有的JSON字段，其他字段为不同生成模块的信息
  *  考虑到历史兼容的问题，应该把所有字段都放在顶层字典
@@ -477,10 +470,7 @@ async function gen_imdb(sid) {
   let $ = page_parser(imdb_page_raw);
 
   // 首先解析页面中的json信息，并从中获取数据  `<script type="application/ld+json">...</script>`
-  let page_json = JSON.parse(
-    imdb_page_raw.match(/<script type="application\/ld\+json">([\S\s]+?)<\/script>/)[1]
-    .replace(/\n/g, "")
-  );
+  let page_json = JSON.parse($('script[type="application/ld+json"]').html().replace(/\n/ig,''));
 
   data["imdb_id"] = imdb_id;
   data["imdb_link"] = imdb_url;
@@ -1128,7 +1118,7 @@ ul.timeline>li:before{content:' ';background:white;display:inline-block;position
                     <li>Bangumi： Bangumi Info Export <a href="https://git.io/fjm3l" target="_blank">脚本</a>，<a href="https://bgm.tv/dev/app/103" target="_blank">应用平台</a></li>
                 </ul>
             </div>
-            <div class='hidden'><span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span></div>
+            <div class="hidden"><span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span></div>
         </div>
     </div>
 </div>
@@ -1140,9 +1130,6 @@ ul.timeline>li:before{content:' ';background:white;display:inline-block;position
 // 脚本查询相关
 $(function () {
   let query_btn = $("#query_btn");
-  let gen_help = $("#gen_help");
-  let gen_out = $("#gen_out");
-  let out_textarea = $("#movie_info");
   let input_btn = $("#input_value");
 
   query_btn.disable = function () {
@@ -1156,15 +1143,13 @@ $(function () {
   };
 
   query_btn.click(function () {
-    gen_help.hide();
-    gen_out.show();
     if (/^http/.test(input_btn.val())) {
       query_btn.disable();
 
       $.getJSON('/', {
-        url: input_value
+        url: input_btn.val()
       }).success(function (data) {
-        out_textarea.val(data["success"] === false ? data["error"] : data["format"]);
+        $("#movie_info").val(data["success"] === false ? data["error"] : data["format"]);
       }).fail(function (jqXHR) {
         alert(jqXHR.status === 429 ? 'Met Rate Limit, Retry later~' : "Error occured!");
       }).complete(function () {
