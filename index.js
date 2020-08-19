@@ -281,41 +281,20 @@ async function gen_douban(sid) {
     site: "douban",
     sid: sid
   };
-  // 先处理douban上的imdb信息
-  if (sid.startsWith("tt")) {
-    let douban_imdb_api = await fetch(`https://api.douban.com/v2/movie/imdb/${sid}?apikey=${getDoubanApiKey()}`);
-    let db_imdb_api_resp = await douban_imdb_api.json();
-    let new_url = db_imdb_api_resp.alt;
-    if (new_url) {
-      let new_group = new_url.match(support_list.douban);
-      if (new_group && !new_group[1].startsWith("tt")) {
-        sid = new_group[1]; // 重写sid到豆瓣对应的值
-      }
-    }
-
-    // 重新检查重写操作是否正常
-    if (sid.startsWith("tt")) {
-      return makeJsonResponse({
-        error: `Can't find this imdb_id(${sid}) in Douban.`
-      });
-    }
-  }
 
   // 下面开始正常的豆瓣处理流程
   let douban_link = `https://movie.douban.com/subject/${sid}/`;
-  let [db_page_resp, db_api_resp, awards_page_resp] = await Promise.all([
+  let [db_page_resp, awards_page_resp] = await Promise.all([
     fetch(`https://movie.douban.com/subject/${sid}/`), // 豆瓣主页面
-    fetch(`https://api.douban.com/v2/movie/${sid}?apikey=${getDoubanApiKey()}`), // 豆瓣api
     fetch(`https://movie.douban.com/subject/${sid}/awards`) // 豆瓣获奖界面
   ]);
 
   let douban_page_raw = await db_page_resp.text();
-  let douban_api_json = await db_api_resp.json();
 
   // 对异常进行处理
-  if (douban_api_json.msg) {
+  if (douban_page_raw.match(/你想访问的页面不存在/)) {
     return makeJsonResponse(Object.assign(data, {
-      error: douban_api_json.msg
+      error: NONE_EXIST_ERROR
     }));
   } else if (douban_page_raw.match(/检测到有异常请求/)) { // 真的会有这种可能吗？
     return makeJsonResponse(Object.assign(data, {
@@ -326,11 +305,7 @@ async function gen_douban(sid) {
     let $ = page_parser(douban_page_raw);
 
     let title = $("title").text().replace("(豆瓣)", "").trim();
-    if (title.match(/页面不存在/)) {
-      return makeJsonResponse(Object.assign(data, {
-        error: NONE_EXIST_ERROR
-      })); // FIXME 此时可能页面只是隐藏，而不是不存在，需要根据json信息进一步判断
-    }
+    let ld_json = JSON.parse($('head > script[type="application/ld+json"]').text().replace(/\n/ig,''));
 
     // 元素获取方法
     let fetch_anchor = function (anchor) {
@@ -423,21 +398,24 @@ async function gen_douban(sid) {
       .replace(/ +\n/g, "\n")
       .trim();
 
-    data["douban_rating_average"] = douban_average_rating = douban_api_json["rating"]["average"] || 0;
-    data["douban_votes"] = douban_votes = douban_api_json["rating"]["numRaters"].toLocaleString() || 0;
+    data["douban_rating_average"] = douban_average_rating = ld_json['aggregateRating'] ? ld_json['aggregateRating']['ratingValue'] : 0;
+    data["douban_votes"] = douban_votes = ld_json['aggregateRating'] ? ld_json['aggregateRating']['ratingCount'] : 0;
     data["douban_rating"] = douban_rating = `${douban_average_rating}/10 from ${douban_votes} users`;
 
-    data["introduction"] = introduction = douban_api_json.summary.replace(/^None$/g, "暂无相关剧情介绍");
-    data["poster"] = poster = douban_api_json.image
+    // 简介 （首先检查是不是有隐藏的，如果有，则直接使用隐藏span的内容作为简介，不然则用 span[property="v:summary"] 的内容）
+    data["introduction"] = introduction = (
+      $('#link-report > span.all.hidden').length > 0 ? $('#link-report > span.all.hidden').text()  // 隐藏部分
+        : ($('[property="v:summary"]').length > 0 ? $('[property="v:summary"]').text() : '暂无相关剧情介绍')
+    ).split('\n').map(a => a.trim()).join('\n');  // 处理简介缩进
+
+    data["poster"] = poster = ld_json['image']
       .replace(/s(_ratio_poster|pic)/g, "l$1")
       .replace("img3", "img1");
 
-    data["director"] = director = douban_api_json.attrs.director ? douban_api_json.attrs.director.join(" / ") : "";
-    data["writer"] = writer = douban_api_json.attrs.writer ? douban_api_json.attrs.writer.join(" / ") : "";
-    data["cast"] = cast = douban_api_json.attrs.cast ? douban_api_json.attrs.cast.join("\n") : "";
-    data["tags"] = tags = douban_api_json.tags.map(function (member) {
-      return member.name;
-    });
+    data["director"] = director = ld_json['director'] ? ld_json['director'].map(x => x['name']).join(" / ") : "";
+    data["writer"] = writer = ld_json['author'] ? ld_json['author'].map(x => x['name']).join(" / ") : "";
+    data["cast"] = cast = ld_json['actor'] ? ld_json['actor'].map(x => x['name']).join("\n") : "";
+    data["tags"] = tags = ld_json['genre'] || [];
 
     // 生成format
     let descr = poster ? `[img]${poster}[/img]\n\n` : "";
@@ -1124,17 +1102,12 @@ ul.timeline>li:before{content:' ';background:white;display:inline-block;position
                     <div class="form-group">
                         <label class="sr-only" for="input_value">Input value</label>
                         <input type="text" class="form-control"
-                               placeholder="名称或豆瓣、IMDb、Bangumi、Steam、indienova、Epic等资源链接" id="input_value"/>
+                               placeholder="豆瓣、IMDb、Bangumi、Steam、indienova、Epic等资源链接" id="input_value"/>
                     </div>
                     <button class="btn btn-success" id="query_btn">查询</button>
-                    <div class="checkbox" id="force_douban_div" style="display: none;">
-                        <label for="force_douban" class="checkbox"></label>
-                        <input type="checkbox" class="form-control" id="force_douban" checked="checked"/> 通过豆瓣查询
-                    </div>
                 </div>
             </div>
             <hr>
-            <div id="gen_help" style="display: none"></div>
             <div id="gen_out">
                 <div class="zero-clipboard">
                     <button class="btn btn-clipboard" data-clipboard-target="#movie_info">复制</button>
@@ -1162,30 +1135,6 @@ ul.timeline>li:before{content:' ';background:white;display:inline-block;position
 <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 <script>
 // 脚本查询相关
-function jsonp(url, arg, fn) {
-  let srpt = document.createElement('script');
-  let funName = 'fun_' + Math.random().toString().substr(3);
-
-  let queryString = '';
-  for (let key in arg) {
-    queryString += key + '=' + arg[key] + '&'
-  }
-  url += '?' + queryString + 'callback=' + funName;
-
-  window[funName] = fn;
-  srpt.src = url;
-  document.body.appendChild(srpt);
-}
-
-const doubanEntApiKeys = [
-  "0dad551ec0f84ed02907ff5c42e8ec70",
-  "02646d3fb69a52ff072d47bf23cef8fd"
-];
-
-function getDoubanEntApiKey() {  // 随机获取一个key
-  return doubanEntApiKeys[Math.floor(Math.random() * doubanEntApiKeys.length)];
-}
-
 $(function () {
   let query_btn = $("#query_btn");
   let gen_help = $("#gen_help");
@@ -1203,57 +1152,23 @@ $(function () {
     query_btn.html("查询");
   };
 
-  input_btn.on('input change', function () {
-    if (input_btn.val().match(/imdb/)) {
-      $('#force_douban_div').show();
-    } else {
-      $('#force_douban_div').hide();
-    }
-  });
-
   query_btn.click(function () {
     gen_help.hide();
     gen_out.show();
-    let input_value = input_btn.val();
-    if (input_value.length === 0) {
-      alert("空字符，请检查输入");
-    } else if (/^http/.test(input_value)) {
+    if (/^http/.test(input_btn.val())) {
       query_btn.disable();
 
-      let param = {
+      $.getJSON('/', {
         url: input_value
-      };
-      if (input_value.match(/imdb/) && $('#force_douban').prop('checked')) {
-        let sid = input_value.match(/tt\\d+/)[0];
-        param = {
-          site: 'douban',
-          sid: sid
-        }
-      }
-
-      $.getJSON('/', param).success(function (data) {
+      }).success(function (data) {
         out_textarea.val(data["success"] === false ? data["error"] : data["format"]);
       }).fail(function (jqXHR) {
         alert(jqXHR.status === 429 ? 'Met Rate Limit, Retry later~' : "Error occured!");
       }).complete(function () {
         query_btn.enable();
       });
-    } else {  // Search from Douban
-      gen_help.show();
-      gen_out.hide();
-      jsonp("https://api.douban.com/v2/movie/search", {
-        q: input_value,
-        apikey: getDoubanEntApiKey()
-      }, function (resj) {
-        gen_help.html(resj.subjects.reduce((accumulator, currentValue) => {
-          return accumulator += "<tr><td>" + currentValue.year + "</td><td>" + currentValue.subtype + "</td><td>" + currentValue.title + "</td><td><a href='" + currentValue.alt + "' target='_blank'>" + currentValue.alt + "</a></td><td><a href='javascript:void(0);' class=\\"gen-search-choose\\" data-url=\\"" + currentValue.alt + "\\">选择</a></td></tr>";
-        }, "<table id='gen_help_table' class='table table-striped table-hover'><thead><tr><th>年代</th><th>类别</th><th>标题</th><th>豆瓣链接</th><th>行为</th></tr></thead><tbody>"));
-        $("a.gen-search-choose").click(function () {
-          let tag = $(this);
-          input_btn.val(tag.attr("data-url"));
-          query_btn.click();
-        });
-      });
+    } else {
+      alert('不再支持豆瓣搜索，请输入http开头的资源链接')
     }
   });
 });
