@@ -399,7 +399,11 @@ async function gen_douban(sid) {
     data["director"] = director = ld_json['director'] ? ld_json['director'] : [];
     data["writer"] = writer = ld_json['author'] ? ld_json['author'] : [];
     data["cast"] = cast = ld_json['actor'] ? ld_json['actor'] : [];
-    data["tags"] = tags = ld_json['genre'] || [];
+
+    let tag_another = $('div.tags-body > a[href^="/tag"]');
+    if (tag_another.length > 0) {
+      data["tags"] = tags = tag_another.map(function () {return $(this).text()}).get();
+    }
 
     let awards_page_raw = await awards_page_resp.text();
     let awards_page = page_parser(awards_page_raw);
