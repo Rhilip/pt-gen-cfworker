@@ -10,7 +10,7 @@ addEventListener("fetch", event => {
 
 // 常量定义
 const AUTHOR = "Rhilip";
-const VERSION = "0.5.3";
+const VERSION = "0.6.0";
 
 const support_list = {
   // 注意value值中正则的分组只能有一个，而且必须是sid信息，其他分组必须设置不捕获属性
@@ -388,6 +388,26 @@ async function gen_douban(sid) {
     data["episodes"] = episodes = episodes_anchor[0] ? fetch_anchor(episodes_anchor) : "";
     data["duration"] = duration = duration_anchor[0] ? fetch_anchor(duration_anchor) : $("#info span[property=\"v:runtime\"]").text().trim();
 
+    // 简介 （首先检查是不是有隐藏的，如果有，则直接使用隐藏span的内容作为简介，不然则用 span[property="v:summary"] 的内容）
+    data["introduction"] = introduction = (
+      $('#link-report > span.all.hidden').length > 0 ? $('#link-report > span.all.hidden').text()  // 隐藏部分
+        : ($('[property="v:summary"]').length > 0 ? $('[property="v:summary"]').text() : '暂无相关剧情介绍')
+    ).split('\n').map(a => a.trim()).join('\n');  // 处理简介缩进
+
+    // 从ld_json中获取信息
+    data["douban_rating_average"] = douban_average_rating = ld_json['aggregateRating'] ? ld_json['aggregateRating']['ratingValue'] : 0;
+    data["douban_votes"] = douban_votes = ld_json['aggregateRating'] ? ld_json['aggregateRating']['ratingCount'] : 0;
+    data["douban_rating"] = douban_rating = `${douban_average_rating}/10 from ${douban_votes} users`;
+
+    data["poster"] = poster = ld_json['image']
+      .replace(/s(_ratio_poster|pic)/g, "l$1")
+      .replace("img3", "img1");
+
+    data["director"] = director = ld_json['director'] ? ld_json['director'] : [];
+    data["writer"] = writer = ld_json['author'] ? ld_json['author'] : [];
+    data["cast"] = cast = ld_json['actor'] ? ld_json['actor'] : [];
+    data["tags"] = tags = ld_json['genre'] || [];
+
     let awards_page_raw = await awards_page_resp.text();
     let awards_page = page_parser(awards_page_raw);
     data["awards"] = awards = awards_page("#content > div > div.article").html()
@@ -399,25 +419,6 @@ async function gen_douban(sid) {
       .replace(/&nbsp;/g, " ")
       .replace(/ +\n/g, "\n")
       .trim();
-
-    data["douban_rating_average"] = douban_average_rating = ld_json['aggregateRating'] ? ld_json['aggregateRating']['ratingValue'] : 0;
-    data["douban_votes"] = douban_votes = ld_json['aggregateRating'] ? ld_json['aggregateRating']['ratingCount'] : 0;
-    data["douban_rating"] = douban_rating = `${douban_average_rating}/10 from ${douban_votes} users`;
-
-    // 简介 （首先检查是不是有隐藏的，如果有，则直接使用隐藏span的内容作为简介，不然则用 span[property="v:summary"] 的内容）
-    data["introduction"] = introduction = (
-      $('#link-report > span.all.hidden').length > 0 ? $('#link-report > span.all.hidden').text()  // 隐藏部分
-        : ($('[property="v:summary"]').length > 0 ? $('[property="v:summary"]').text() : '暂无相关剧情介绍')
-    ).split('\n').map(a => a.trim()).join('\n');  // 处理简介缩进
-
-    data["poster"] = poster = ld_json['image']
-      .replace(/s(_ratio_poster|pic)/g, "l$1")
-      .replace("img3", "img1");
-
-    data["director"] = director = ld_json['director'] ? ld_json['director'].map(x => x['name']).join(" / ") : "";
-    data["writer"] = writer = ld_json['author'] ? ld_json['author'].map(x => x['name']).join(" / ") : "";
-    data["cast"] = cast = ld_json['actor'] ? ld_json['actor'].map(x => x['name']).join("\n") : "";
-    data["tags"] = tags = ld_json['genre'] || [];
 
     // 生成format
     let descr = poster ? `[img]${poster}[/img]\n\n` : "";
@@ -434,10 +435,10 @@ async function gen_douban(sid) {
     descr += douban_link ? `◎豆瓣链接　${douban_link}\n` : "";
     descr += episodes ? `◎集　　数　${episodes}\n` : "";
     descr += duration ? `◎片　　长　${duration}\n` : "";
-    descr += director ? `◎导　　演　${director}\n` : "";
-    descr += writer ? `◎编　　剧　${writer}\n` : "";
-    descr += cast ? `◎主　　演　${cast.replace(/\n/g, "\n" + "　".repeat(4) + "  　").trim()}\n` : "";
-    descr += tags ? `\n◎标　　签　${tags.join(" | ")}\n` : "";
+    descr += director && director.length > 0 ? `◎导　　演　${director.map(x => x['name']).join(" / ")}\n` : "";
+    descr += writer && writer.length > 0 ? `◎编　　剧　${writer.map(x => x['name']).join(" / ")}\n` : "";
+    descr += cast && cast.length > 0 ? `◎主　　演　${cast.map(x => x['name']).join("\n" + "　".repeat(4) + "  　").trim()}\n` : "";
+    descr += tags && tags.length > 0 ? `\n◎标　　签　${tags.join(" | ")}\n` : "";
     descr += introduction ? `\n◎简　　介\n\n　　${introduction.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
     descr += awards ? `\n◎获奖情况\n\n　　${awards.replace(/\n/g, "\n" + "　".repeat(2))}\n` : "";
 
