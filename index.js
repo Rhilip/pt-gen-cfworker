@@ -63,8 +63,25 @@ async function handle(event) {
       // 不存在任何请求字段，且在根目录，返回默认页面（HTML）
       if (uri.pathname === '/' && uri.search === '') {
         response = await makeIndexResponse();
+      }
+      // 其他的请求均应视为ajax请求，返回JSON
+      else if (uri.searchParams.get('search')) {
+        // 搜索类（通过PT-Gen代理）
+        let keywords = uri.searchParams.get('search');
+        let source = uri.searchParams.get('source') || 'douban';
+
+        if (source === 'douban') {
+          response = await search_douban(keywords)
+        } else if (source === 'bangumi') {
+          response = await search_bangumi(keywords)
+        } else {
+          // 没有对应方法的资源站点，（真的会有这种情况吗？
+          response = makeJsonResponse({
+            error: "Miss search function for `source`: " + source + "."
+          });
+        }
       } else {
-        // 其他的请求均应视为ajax请求，返回JSON
+        // 内容生成类
         let site, sid;
 
         // 请求字段 `&url=` 存在
@@ -197,13 +214,6 @@ function html2bbcode(html) {
   return bbcode.toString();
 }
 
-// 从前面定义的douban_apikey_list中随机取一个来使用
-function getDoubanApiKey() {
-  return douban_apikey_list[
-    Math.floor(Math.random() * douban_apikey_list.length)
-  ];
-}
-
 function getNumberFromString(raw) {
   return (raw.match(/[\d,]+/) || [0])[0].replace(/,/g, "");
 }
@@ -266,6 +276,41 @@ function parse_err(err) {
       }
     })
     .filter(Boolean)
+}
+
+// 各个资源站点的相应资源搜索整理方法
+async function search_douban(query) {
+  let douban_search = await fetch(`https://movie.douban.com/j/subject_suggest?q=${query}`);
+  let douban_search_json = await douban_search.json();
+
+  return makeJsonResponse({
+    data: douban_search_json.map(d => {
+      return {
+        year: d.year,
+        subtype: d.type,
+        title: d.title,
+        subtitle: d.subtitle,
+        link: `https://movie.douban.com/subject/${d.id}/`
+      }
+    })
+  })
+}
+
+async function search_bangumi(query) {
+  const tp_dict = {1: "漫画/小说", 2: "动画/二次元番", 3: "音乐", 4: "游戏", 6: "三次元番"};
+  let bgm_search = await fetch(`http://api.bgm.tv/search/subject/${query}?responseGroup=large`)
+  let bgm_search_json = await bgm_search.json();
+  return makeJsonResponse({
+    data: bgm_search_json.map(d => {
+      return {
+        year: d['air_date'].slice(0, 4),
+        subtype: tp_dict['type'],
+        title: d['name_cn'],
+        subtitle: d['name'],
+        link: d['url']
+      }
+    })
+  })
 }
 
 // 各个资源站点的相应请求整理方法，统一使用async function
@@ -943,7 +988,7 @@ async function gen_epic(sid) {
     sid: sid
   };
 
-  epic_api_resp = await fetch(`https://store-content.ak.epicgames.com/api/zh-CN/content/products/${sid}`);
+  let epic_api_resp = await fetch(`https://store-content.ak.epicgames.com/api/zh-CN/content/products/${sid}`);
   if ((await epic_api_resp.status) === 404) { // 当接口返回404时内容不存在，200则继续解析
     return makeJsonResponse(Object.assign(data, {
       error: NONE_EXIST_ERROR
@@ -1051,17 +1096,17 @@ const INDEX = `
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha256-916EbMg70RQy9LHiGkXzG8hSg9EdNy97GazNG/aiY1w=" crossorigin="anonymous">
 
     <style type="text/css">
-body{padding-top:50px}
-.navbar-fixed-top{border:0}
-.main{padding:20px;margin-top:0}
-@media (min-width:768px){.main{padding-right:40px;padding-left:40px}}
-#input_value{width:480px}
-.zero-clipboard{position:relative}
-.btn-clipboard{position:absolute;top:8px;right:21px;z-index:10;display:block;padding:5px 8px;font-size:12px;color:#767676;cursor:pointer;background-color:#fff;border:1px solid #e1e1e8;border-radius:0 4px 0 4px}
-ul.timeline{list-style-type:none;position:relative}
-ul.timeline:before{content:' ';background:#d4d9df;display:inline-block;position:absolute;left:29px;width:2px;height:100%;z-index:400}
-ul.timeline>li{margin:20px 0;padding-left:20px}
-ul.timeline>li:before{content:' ';background:white;display:inline-block;position:absolute;border-radius:50%;border:3px solid #22c0e8;left:20px;width:20px;height:20px;z-index:400}
+        body{padding-top:50px}
+        .navbar-fixed-top{border:0}
+        .main{padding:20px;margin-top:0}
+        @media (min-width:768px){.main{padding-right:40px;padding-left:40px}}
+        #input_value{width:480px}
+        .zero-clipboard{position:relative}
+        .btn-clipboard{position:absolute;top:8px;right:21px;z-index:10;display:block;padding:5px 8px;font-size:12px;color:#767676;cursor:pointer;background-color:#fff;border:1px solid #e1e1e8;border-radius:0 4px 0 4px}
+        ul.timeline{list-style-type:none;position:relative}
+        ul.timeline:before{content:' ';background:#d4d9df;display:inline-block;position:absolute;left:29px;width:2px;height:100%;z-index:400}
+        ul.timeline>li{margin:20px 0;padding-left:20px}
+        ul.timeline>li:before{content:' ';background:white;display:inline-block;position:absolute;border-radius:50%;border:3px solid #22c0e8;left:20px;width:20px;height:20px;z-index:400}
     </style>
 
     <!--[if lt IE 9]>
@@ -1099,12 +1144,20 @@ ul.timeline>li:before{content:' ';background:white;display:inline-block;position
                     <div class="form-group">
                         <label class="sr-only" for="input_value">Input value</label>
                         <input type="text" class="form-control"
-                               placeholder="豆瓣、IMDb、Bangumi、Steam、indienova、Epic等资源链接" id="input_value"/>
+                               placeholder="名称或豆瓣、IMDb、Bangumi、Steam、indienova、Epic等资源链接" id="input_value"/>
+                    </div>
+                    <div class="form-group" id="search_source" style="display: none">
+                        <label class="sr-only" for="search_source_val"></label>
+                        <select class="form-control" id="search_source_val">
+                            <option value="douban">豆瓣</option>
+                            <option value="bangumi">Bangumi</option>
+                        </select>
                     </div>
                     <button class="btn btn-success" id="query_btn">查询</button>
                 </div>
             </div>
             <hr>
+            <div id="gen_help" style="display: none"></div>
             <div id="gen_out">
                 <div class="zero-clipboard">
                     <button class="btn btn-clipboard" data-clipboard-target="#movie_info">复制</button>
@@ -1131,42 +1184,82 @@ ul.timeline>li:before{content:' ';background:white;display:inline-block;position
 <script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.0/dist/clipboard.min.js" integrity="sha256-meF2HJJ2Tcruwz3z4XcxYDRMxKprjdruBHc3InmixCQ=" crossorigin="anonymous"></script>
 <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 <script>
-// 脚本查询相关
-$(function () {
-  let query_btn = $("#query_btn");
-  let input_btn = $("#input_value");
+  // 脚本查询相关
+  $(function () {
+    let query_btn = $("#query_btn");
+    let gen_help = $("#gen_help");
+    let gen_out = $("#gen_out");
+    let input_btn = $("#input_value");
+    let search_source = $("#search_source");
 
-  query_btn.disable = function () {
-    query_btn.attr("disabled", true);
-    query_btn.html("查询中");
-  };
+    input_btn.on('input change', function () {
+      let input_value = input_btn.val();
+      if (/^http/.test(input_value) || input_value === '') {
+        query_btn.html("查询");
+        search_source.hide();
+      } else {
+        query_btn.html("搜索");
+        search_source.show();
+      }
+    });
 
-  query_btn.enable = function () {
-    query_btn.removeAttr("disabled");
-    query_btn.html("查询");
-  };
+    query_btn.disable = function () {
+      query_btn.attr("disabled", true);
+      query_btn.html("查询中");
+    };
 
-  query_btn.click(function () {
-    if (/^http/.test(input_btn.val())) {
+    query_btn.enable = function () {
+      query_btn.removeAttr("disabled");
+      query_btn.html("查询");
+    };
+
+    query_btn.click(function () {
       query_btn.disable();
 
-      $.getJSON('/', {
-        url: input_btn.val()
-      }).success(function (data) {
-        $("#movie_info").val(data["success"] === false ? data["error"] : data["format"]);
-      }).fail(function (jqXHR) {
-        alert(jqXHR.status === 429 ? 'Met Rate Limit, Retry later~' : "Error occured!");
-      }).complete(function () {
+      let input_value = input_btn.val();
+      if (input_value.length === 0) {
+        alert("空字符，请检查输入");
         query_btn.enable();
-      });
-    } else {
-      alert('不再支持豆瓣搜索，请输入http开头的资源链接')
-    }
-  });
-});
+      } else if (/^http/.test(input_value)) {
+        gen_help.hide();
+        gen_out.show();
 
-// 页面复制相关
-new ClipboardJS('.btn-clipboard');
+        $.getJSON('/', {
+          url: input_value
+        }).success(function (data) {
+          $("#movie_info").val(data["success"] === false ? data["error"] : data["format"]);
+        }).fail(function (jqXHR) {
+          alert(jqXHR.status === 429 ? 'Met Rate Limit, Retry later~' : "Error occured!");
+        }).complete(function () {
+          query_btn.enable();
+        });
+      } else if (input_btn.val().length > 0) {
+        gen_help.show();
+        gen_out.hide();
+
+        $.getJSON('/', {
+          search: input_value,
+          source: $('#search_source_val').val()
+        }).success(function (data) {
+          gen_help.html(resj.subjects.reduce((accumulator, currentValue) => {
+            return accumulator += "<tr><td>" + currentValue.year + "</td><td>" + currentValue.subtype + "</td><td>" + currentValue.title + "</td><td><a href='" + currentValue.link + "' target='_blank'>" + currentValue.link + "</a></td><td><a href='javascript:void(0);' class='gen-search-choose' data-url='" + currentValue.alt + "'>选择</a></td></tr>";
+          }, "<table id='gen_help_table' class='table table-striped table-hover'><thead><tr><th>年代</th><th>类别</th><th>标题</th><th>资源链接</th><th>行为</th></tr></thead><tbody>"));
+          $("a.gen-search-choose").click(function () {
+            let tag = $(this);
+            input_btn.val(tag.attr("data-url"));
+            query_btn.click();
+          });
+        }).fail(function (jqXHR) {
+          alert('不知道发生了什么奇怪的事情');
+        }).complete(function() {
+          query_btn.enable();
+        })
+      }
+    });
+  });
+
+  // 页面复制相关
+  new ClipboardJS('.btn-clipboard');
 </script>
 </body>
 </html>
