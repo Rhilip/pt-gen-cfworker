@@ -385,7 +385,7 @@ async function gen_douban(sid) {
     data["introduction"] = introduction = (
       $('#link-report > span.all.hidden').length > 0 ? $('#link-report > span.all.hidden').text()  // 隐藏部分
         : ($('[property="v:summary"]').length > 0 ? $('[property="v:summary"]').text() : '暂无相关剧情介绍')
-    ).split('\n').map(a => a.trim()).join('\n');  // 处理简介缩进
+    ).trim().split('\n').map(a => a.trim()).join('\n');  // 处理简介缩进
 
     // 从ld_json中获取信息
     data["douban_rating_average"] = douban_average_rating = ld_json['aggregateRating'] ? ld_json['aggregateRating']['ratingValue'] : 0;
