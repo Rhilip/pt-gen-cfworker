@@ -32,7 +32,7 @@ API Point：
 | 资源来源站点 | 搜索支持 | 链接格式（Regexp） |
 | :---: | :---: | :------|
 | douban | √ | `/(?:https?:\/\/)?(?:(?:movie\|www)\.)?douban\.com\/(?:subject\|movie)\/(\d+)\/?/` |
-| imdb | × | `/(?:https?:\/\/)?(?:www\.)?imdb\.com\/title\/(tt\d+)\/?/` |
+| imdb | √ | `/(?:https?:\/\/)?(?:www\.)?imdb\.com\/title\/(tt\d+)\/?/` |
 | bangumi | √ | `/(?:https?:\/\/)?(?:bgm\.tv\|bangumi\.tv\|chii\.in)\/subject\/(\d+)\/?/` |
 | steam | × | `/(?:https?:\/\/)?(?:store\.)?steam(?:powered\|community)\.com\/app\/(\d+)\/?/` |
 | indienova | × | `/(?:https?:\/\/)?indienova\.com\/game\/(\S+)/` | 

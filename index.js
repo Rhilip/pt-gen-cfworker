@@ -75,6 +75,8 @@ async function handle(event) {
             response = await search_douban(keywords)
           } else if (source === 'bangumi') {
             response = await search_bangumi(keywords)
+          } else if (source === 'imdb') {
+            response = await search_imdb(keywords)
           } else {
             // 没有对应方法搜索的资源站点
             response = makeJsonResponse({
@@ -299,6 +301,29 @@ async function search_douban(query) {
         link: `https://movie.douban.com/subject/${d.id}/`
       }
     })
+  })
+}
+
+async function search_imdb(query) {
+  let imdb_search = await fetch(`https://v2.sg.media-imdb.com/suggestion/${query.slice(0, 1)}/${query}.json`)
+  let data;
+  if (imdb_search.status === 404) {
+    data = [];
+  } else {
+    let imdb_search_json = await imdb_search.json();
+    data = imdb_search_json.d.filter(d => {
+      return /^tt/.test(d.id)
+    }).map(d => {
+      return {
+        year: d.y,
+        subtype: d.q,
+        title: d.l,
+        link: `https://www.imdb.com/title/${d.id}`
+      }
+    })
+  }
+  return makeJsonResponse({
+    data: data
   })
 }
 
@@ -995,7 +1020,7 @@ async function gen_epic(sid) {
   };
 
   let epic_api_resp = await fetch(`https://store-content.ak.epicgames.com/api/zh-CN/content/products/${sid}`);
-  if ((await epic_api_resp.status) === 404) { // 当接口返回404时内容不存在，200则继续解析
+  if (epic_api_resp.status === 404) { // 当接口返回404时内容不存在，200则继续解析
     return makeJsonResponse(Object.assign(data, {
       error: NONE_EXIST_ERROR
     }));
@@ -1157,6 +1182,7 @@ const INDEX = `
                         <label class="sr-only" for="search_source_val"></label>
                         <select class="form-control" id="search_source_val">
                             <option value="douban">豆瓣</option>
+                            <option value="imdb">IMDb</option>
                             <option value="bangumi">Bangumi</option>
                         </select>
                     </div>
