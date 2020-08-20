@@ -306,12 +306,9 @@ async function search_douban(query) {
 
 async function search_imdb(query) {
   let imdb_search = await fetch(`https://v2.sg.media-imdb.com/suggestion/${query.slice(0, 1)}/${query}.json`)
-  let data;
-  if (imdb_search.status === 404) {
-    data = [];
-  } else {
-    let imdb_search_json = await imdb_search.json();
-    data = imdb_search_json.d.filter(d => {
+  let imdb_search_json = await imdb_search.json();
+  return makeJsonResponse({
+    data: (imdb_search_json.d || []).filter(d => {
       return /^tt/.test(d.id)
     }).map(d => {
       return {
@@ -321,9 +318,6 @@ async function search_imdb(query) {
         link: `https://www.imdb.com/title/${d.id}`
       }
     })
-  }
-  return makeJsonResponse({
-    data: data
   })
 }
 
