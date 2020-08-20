@@ -70,14 +70,20 @@ async function handle(event) {
         let keywords = uri.searchParams.get('search');
         let source = uri.searchParams.get('source') || 'douban';
 
-        if (source === 'douban') {
-          response = await search_douban(keywords)
-        } else if (source === 'bangumi') {
-          response = await search_bangumi(keywords)
+        if (support_site_list.includes(source)) {
+          if (source === 'douban') {
+            response = await search_douban(keywords)
+          } else if (source === 'bangumi') {
+            response = await search_bangumi(keywords)
+          } else {
+            // 没有对应方法搜索的资源站点
+            response = makeJsonResponse({
+              error: "Miss search function for `source`: " + source + "."
+            });
+          }
         } else {
-          // 没有对应方法的资源站点，（真的会有这种情况吗？
           response = makeJsonResponse({
-            error: "Miss search function for `source`: " + source + "."
+            error: "Unknown value of key `source`."
           });
         }
       } else {
@@ -1144,7 +1150,7 @@ const INDEX = `
                         <label class="sr-only" for="input_value">Input value</label>
                         <input type="text" class="form-control"
                                placeholder="名称或豆瓣、IMDb、Bangumi、Steam、indienova、Epic等资源链接" id="input_value"
-                               style="width: 460px"
+                               style="width: 480px"
                         />
                     </div>
                     <div class="form-group" id="search_source" style="display: none">
