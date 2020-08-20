@@ -301,7 +301,7 @@ async function search_bangumi(query) {
   let bgm_search = await fetch(`http://api.bgm.tv/search/subject/${query}?responseGroup=large`)
   let bgm_search_json = await bgm_search.json();
   return makeJsonResponse({
-    data: bgm_search_json.map(d => {
+    data: bgm_search_json.list.map(d => {
       return {
         year: d['air_date'].slice(0, 4),
         subtype: tp_dict['type'],
