@@ -723,6 +723,20 @@ async function gen_bangumi(sid) {
     return $(this).text();
   }).get();
 
+  // ---其他页面信息，但是暂未放入format中
+
+  // 评分信息
+  data["bangumi_votes"] = $('span[property="v:votes"]').text();
+  data["bangumi_rating_average"] = $('div.global_score > span[property="v:average"]').text();
+
+  // 标签
+  data["tags"] = $('#subject_detail > div.subject_tag_section > div > a > span').map(function () {
+    return $(this).text()
+  }).get()
+
+  // ---其他暂未放入format的页面信息结束
+
+  // 角色信息
   let bangumi_characters_page_raw = await bangumi_characters_resp.text();
   let bangumi_characters_page = page_parser(bangumi_characters_page_raw);
   let cast_actors = bangumi_characters_page("div#columnInSubjectA > div.light_odd > div.clearit");
