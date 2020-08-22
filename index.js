@@ -1224,16 +1224,24 @@ const INDEX = `
     input_btn.on('input change', function () {
       let input_value = input_btn.val();
       if (/^http/.test(input_value) || input_value === '') {
-        query_btn.html("查询");
-        search_source.hide();
-        input_btn.css({width:'480px'});
+        search_source.hideBtn();
       } else {
-        query_btn.html("搜索");
-        search_source.show();
-        input_btn.css({width:'460px'});
+        search_source.showBtn();
       }
     });
-
+    
+    search_source.showBtn = function () {
+      query_btn.html("搜索");
+      search_source.show();
+      input_btn.css({width:'460px'});
+    }
+    
+    search_source.hideBtn = function () {
+      query_btn.html("查询");
+      search_source.hide();
+      input_btn.css({width:'480px'});
+    }
+    
     query_btn.disable = function () {
       query_btn.attr("disabled", true);
       query_btn.html("查询中");
@@ -1279,6 +1287,7 @@ const INDEX = `
           $("a.gen-search-choose").click(function () {
             let tag = $(this);
             input_btn.val(tag.attr("data-url"));
+            search_source.hideBtn();
             query_btn.click();
           });
         }).fail(function (jqXHR) {
