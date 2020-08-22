@@ -297,7 +297,7 @@ async function search_douban(query) {
         year: d.year,
         subtype: d.type,
         title: d.title,
-        subtitle: d.subtitle,
+        subtitle: d.sub_title,
         link: `https://movie.douban.com/subject/${d.id}/`
       }
     })
