@@ -211,8 +211,12 @@ function page_parser(responseText) {
 
 // 解析JSONP返回
 function jsonp_parser(responseText) {
-  responseText = responseText.match(/[^(]+\((.+)\)/)[1];
-  return JSON.parse(responseText);
+  try {
+    responseText = responseText.replace(/\n/ig,'').match(/[^(]+\((.+)\)/)[1];
+    return JSON.parse(responseText);
+  } catch (e) {
+    return {}
+  }
 }
 
 // Html2bbcode
@@ -398,11 +402,9 @@ async function gen_douban(sid) {
       let imdb_api_raw = await imdb_api_resp.text();
       let imdb_json = jsonp_parser(imdb_api_raw);
 
-      imdb_average_rating = imdb_json["resource"]["rating"] || 0;
-      imdb_votes = imdb_json["resource"]["ratingCount"] || 0;
-      if (imdb_average_rating && imdb_votes) {
-        data["imdb_votes"] = imdb_votes;
-        data["imdb_rating_average"] = imdb_average_rating;
+      if (imdb_json["resource"]) {
+        data["imdb_rating_average"] = imdb_average_rating = imdb_json["resource"]["rating"] || 0;
+        data["imdb_votes"] = imdb_votes = imdb_json["resource"]["ratingCount"] || 0;
         data["imdb_rating"] = imdb_rating = `${imdb_average_rating}/10 from ${imdb_votes} users`;
       }
     }
@@ -452,11 +454,11 @@ async function gen_douban(sid) {
     data["episodes"] = episodes = episodes_anchor[0] ? fetch_anchor(episodes_anchor) : "";
     data["duration"] = duration = duration_anchor[0] ? fetch_anchor(duration_anchor) : $("#info span[property=\"v:runtime\"]").text().trim();
 
-    // 简介 （首先检查是不是有隐藏的，如果有，则直接使用隐藏span的内容作为简介，不然则用 span[property="v:summary"] 的内容）
+    // 简介 首先检查是不是有隐藏的，如果有，则直接使用隐藏span的内容作为简介，不然则用 span[property="v:summary"] 的内容
+    let introduction_another = $('#link-report > span.all.hidden, #link-report > [property="v:summary"]')
     data["introduction"] = introduction = (
-      $('#link-report > span.all.hidden').length > 0 ? $('#link-report > span.all.hidden').text()  // 隐藏部分
-        : ($('[property="v:summary"]').length > 0 ? $('[property="v:summary"]').text() : '暂无相关剧情介绍')
-    ).trim().split('\n').map(a => a.trim()).join('\n');  // 处理简介缩进
+      introduction_another.length > 0 ? introduction_another.text() : '暂无相关剧情介绍'
+    ).split('\n').map(a => a.trim()).filter(a => a.length > 0).join('\n');  // 处理简介缩进
 
     // 从ld_json中获取信息
     data["douban_rating_average"] = douban_average_rating = ld_json['aggregateRating'] ? ld_json['aggregateRating']['ratingValue'] : 0;
