@@ -305,6 +305,7 @@ async function search_douban(query) {
 }
 
 async function search_imdb(query) {
+  query = query.toLowerCase()  // 大写字母须转成小写
   let imdb_search = await fetch(`https://v2.sg.media-imdb.com/suggestion/${query.slice(0, 1)}/${query}.json`)
   let imdb_search_json = await imdb_search.json();
   return makeJsonResponse({
