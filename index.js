@@ -741,8 +741,10 @@ async function gen_bangumi(sid) {
   // 生成format
   let descr = (data["poster"] && data["poster"].length > 0) ? `[img]${data["poster"]}[/img]\n\n` : "";
   descr += (data["story"] && data["story"].length > 0) ? `[b]Story: [/b]\n\n${data["story"]}\n\n` : "";
-  // 读取第4-19x  （假定bgm的顺序为中文名、话数、放送开始、放送星期...，对新番适用，较老番组可能不好  ，staff从第四个 导演 起算）
-  descr += (data["staff"] && data["staff"].length > 0) ? `[b]Staff: [/b]\n\n${data["staff"].slice(4, 4 + 15).join("\n")}\n\n` : "";
+  // 中文名、话数、放送开始、放送星期 不视为staff列表项
+  descr += (data["staff"] && data["staff"].length > 0) ? `[b]Staff: [/b]\n\n${data["staff"].filter(d => {
+    return !/^(中文名|话数|放送开始|放送星期)/.test(d)
+  }).slice(0, 15).join("\n")}\n\n` : "";
   // 读取前9项cast信息
   descr += (data["cast"] && data["cast"].length > 0) ? `[b]Cast: [/b]\n\n${data["cast"].slice(0, 9).join("\n")}\n\n` : "";
   descr += (data["alt"] && data["alt"].length > 0) ? `(来源于 ${data["alt"]} )\n` : "";
