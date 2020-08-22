@@ -351,12 +351,8 @@ async function gen_douban(sid) {
   };
 
   // 下面开始正常的豆瓣处理流程
-  let douban_link = `https://movie.douban.com/subject/${sid}/`;
-  let [db_page_resp, awards_page_resp] = await Promise.all([
-    fetch(`https://movie.douban.com/subject/${sid}/`), // 豆瓣主页面
-    fetch(`https://movie.douban.com/subject/${sid}/awards`) // 豆瓣获奖界面
-  ]);
-
+  let douban_link = `https://movie.douban.com/subject/${sid}/`;  // 构造链接
+  let db_page_resp = await fetch(douban_link); // 请求豆瓣对应项目主页面
   let douban_page_raw = await db_page_resp.text();
 
   // 对异常进行处理
@@ -369,7 +365,9 @@ async function gen_douban(sid) {
       error: "GenHelp was temporary banned by Douban, Please wait...."
     }));
   } else {
-    // 解析页面
+    let awards_page_req = fetch(`${douban_link}awards`) // 马上请求豆瓣获奖界面
+
+    // 解析主页面
     let $ = page_parser(douban_page_raw);
 
     let title = $("title").text().replace("(豆瓣)", "").trim();
@@ -478,6 +476,7 @@ async function gen_douban(sid) {
       data["tags"] = tags = tag_another.map(function () {return $(this).text()}).get();
     }
 
+    let awards_page_resp = await awards_page_req;
     let awards_page_raw = await awards_page_resp.text();
     let awards_page = page_parser(awards_page_raw);
     data["awards"] = awards = awards_page("#content > div > div.article").html()
@@ -531,11 +530,8 @@ async function gen_imdb(sid) {
   // 不足7位补齐到7位，如果是7、8位则直接使用
   let imdb_id = "tt" + sid.padStart(7, "0");
   let imdb_url = `https://www.imdb.com/title/${imdb_id}/`;
-  let [imdb_page_resp, imdb_release_info_page_resp] = await Promise.all([
-    fetch(imdb_url),
-    fetch(`https://www.imdb.com/title/${imdb_id}/releaseinfo`)
-  ]);
 
+  let imdb_page_resp = await fetch(imdb_url);
   let imdb_page_raw = await imdb_page_resp.text();
 
   if (imdb_page_raw.match(/404 Error - IMDb/)) {
@@ -543,6 +539,8 @@ async function gen_imdb(sid) {
       error: NONE_EXIST_ERROR
     }));
   }
+
+  let imdb_release_info_page_req = fetch(`${imdb_url}releaseinfo`)
 
   let $ = page_parser(imdb_page_raw);
 
@@ -630,6 +628,7 @@ async function gen_imdb(sid) {
 
   // 请求附属信息
   // 第一部分： releaseinfo
+  let imdb_release_info_page_resp = await imdb_release_info_page_req;
   let imdb_release_info_raw = await imdb_release_info_page_resp.text();
   let imdb_release_info = page_parser(imdb_release_info_raw);
 
@@ -690,13 +689,8 @@ async function gen_bangumi(sid) {
 
   // 请求页面
   let bangumi_link = `https://bgm.tv/subject/${sid}`;
-  let [bangumi_page_resp, bangumi_characters_resp] = await Promise.all([
-    fetch(bangumi_link),
-    fetch(`https://bgm.tv/subject/${sid}/characters`)
-  ]);
-
+  let bangumi_page_resp = await fetch(bangumi_link);
   let bangumi_page_raw = await bangumi_page_resp.text();
-
   if (bangumi_page_raw.match(/呜咕，出错了/)) {
     return makeJsonResponse(Object.assign(data, {
       error: NONE_EXIST_ERROR
@@ -704,6 +698,10 @@ async function gen_bangumi(sid) {
   }
 
   data["alt"] = bangumi_link;
+
+  // 立即请求附加资源
+  let bangumi_characters_req = fetch(`${bangumi_link}/characters`)
+
   let $ = page_parser(bangumi_page_raw);
 
   // 对页面进行划区
@@ -737,6 +735,7 @@ async function gen_bangumi(sid) {
   // ---其他暂未放入format的页面信息结束
 
   // 角色信息
+  let bangumi_characters_resp = await bangumi_characters_req;
   let bangumi_characters_page_raw = await bangumi_characters_resp.text();
   let bangumi_characters_page = page_parser(bangumi_characters_page_raw);
   let cast_actors = bangumi_characters_page("div#columnInSubjectA > div.light_odd > div.clearit");
@@ -774,19 +773,15 @@ async function gen_steam(sid) {
     sid: sid
   };
 
-  let [steam_page_resp, steamcn_api_resp] = await Promise.all([
-    fetch(`https://store.steampowered.com/app/${sid}/?l=schinese`, {
-      headers: { // 使用Cookies绕过年龄检查和成人内容提示，并强制中文
-        "Cookies": "lastagecheckage=1-January-1975; birthtime=157737601; mature_content=1; wants_mature_content=1; Steam_Language=schinese"
-      }
-    }),
-    fetch(`https://steamdb.keylol.com/app/${sid}/data.js?v=38`)
-  ]);
-
-  let steam_page_raw = await steam_page_resp.text();
+  let steam_page_resp = await fetch(`https://store.steampowered.com/app/${sid}/?l=schinese`, {
+    redirect: "manual",
+    headers: { // 使用Cookies绕过年龄检查和成人内容提示，并强制中文
+      "Cookies": "lastagecheckage=1-January-1975; birthtime=157737601; mature_content=1; wants_mature_content=1; Steam_Language=schinese"
+    }
+  });
 
   // 不存在的资源会被302到首页，故检查标题
-  if (steam_page_raw.match(/<title>(欢迎来到|Welcome to) Steam<\/title>/)) {
+  if (steam_page_resp.status === 302) {
     return makeJsonResponse(Object.assign(data, {
       error: NONE_EXIST_ERROR
     }));
@@ -794,11 +789,9 @@ async function gen_steam(sid) {
 
   data["steam_id"] = sid;
 
-  let steamcn_api_jsonp = await steamcn_api_resp.text();
-  let steamcn_api_json = jsonp_parser(steamcn_api_jsonp);
-  if (steamcn_api_json["name_cn"]) data["name_chs"] = steamcn_api_json["name_cn"];
-
-  let $ = page_parser(steam_page_raw);
+  // 立即请求附加资源
+  let steamcn_api_req = fetch(`https://steamdb.keylol.com/app/${sid}/data.js?v=38`);
+  let $ = page_parser(await steam_page_resp.text());
 
   // 从网页中定位数据
   let name_anchor = $("div.apphub_AppName") || $("span[itemprop=\"name\"]"); // 游戏名
@@ -876,6 +869,12 @@ async function gen_steam(sid) {
 
     return `${os_type}\n${sysreq_content}`;
   }).get() : [];
+
+  // 处理附加资源
+  let steamcn_api_resp = await steamcn_api_req;
+  let steamcn_api_jsonp = await steamcn_api_resp.text();
+  let steamcn_api_json = jsonp_parser(steamcn_api_jsonp);
+  if (steamcn_api_json["name_cn"]) data["name_chs"] = steamcn_api_json["name_cn"];
 
   // 生成format
   let descr = (data["poster"] && data["poster"].length > 0) ? `[img]${data["poster"]}[/img]\n\n` : "";

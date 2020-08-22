@@ -5,6 +5,7 @@ bin/
 pkg/
 wasm-pack.log
 worker/
+dist/
 node_modules/
 .cargo-ok
 .idea
