@@ -330,8 +330,8 @@ async function search_bangumi(query) {
     data: bgm_search_json.list.map(d => {
       return {
         year: d['air_date'].slice(0, 4),
-        subtype: tp_dict['type'],
-        title: d['name_cn'],
+        subtype: tp_dict[d['type']],
+        title: d['name_cn'] !== '' ? d['name_cn'] : d['name'],
         subtitle: d['name'],
         link: d['url']
       }
