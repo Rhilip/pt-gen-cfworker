@@ -21,7 +21,6 @@ script:
   - cp wrangler.toml.sample wrangler.toml
   - sed -i "s/CF_ACCOUNT_ID/${CF_ACCOUNT_ID}/g" wrangler.toml
   - sed -e '/INDEX_HTML_REPLACE/ {' -e 'r index.html' -e 'd' -e '}' -i index.js
-  - wrangler whoami
   - wrangler publish
 
 after_success:
