@@ -38,5 +38,8 @@ API Point：
 | indienova | × | `/(?:https?:\/\/)?indienova\.com\/game\/(\S+)/` | 
 | epic | × | `/(?:https?:\/\/)?www\.epicgames\.com\/store\/[a-zA-Z-]+\/product\/(\S+)\/\S?/` |
 
+> update 2021.03.31 : 由于 indienova 的限制（见 [#15](https://github.com/Rhilip/pt-gen-cfworker/issues/15) ），请在Worker中添加对应
+> update 2020.11.23 : 由于 steam 服务器对于 cf-worker 访问进行限制 （ 见[#10](https://github.com/Rhilip/pt-gen-cfworker/issues/10) ）， 目前服务的 steam 相关资源生成均无法使用。
+
 ## License
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FRhilip%2Fpt-gen-cfworker.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FRhilip%2Fpt-gen-cfworker?ref=badge_large)
