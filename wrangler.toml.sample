@@ -2,3 +2,4 @@ name = "ptgen"
 type = "webpack"
 workers_dev = true
 account_id = "CF_ACCOUNT_ID"
+vars = { INDIENOVA_COOKIE = "", DOUBAN_COOKIE = "" }
