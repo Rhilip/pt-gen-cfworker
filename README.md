@@ -10,7 +10,7 @@
 
 否则请参照 `.Travis.yml` 文件构造方法，直接使用`wrangler`搭建Cloudflare-Worker。
 
-# 本项目请求方法
+## 本项目请求方法
 
 API Point：
  - https://ptgen.rhilip.info/
@@ -38,9 +38,16 @@ API Point：
 | indienova | × | `/(?:https?:\/\/)?indienova\.com\/game\/(\S+)/` | 
 | epic | × | `/(?:https?:\/\/)?www\.epicgames\.com\/store\/[a-zA-Z-]+\/product\/(\S+)\/\S?/` |
 
-> update 2021.03.31 : 由于 indienova 的限制（见 [#15](https://github.com/Rhilip/pt-gen-cfworker/issues/15) ），请在Worker中添加对应环境变量。
-> 
 > update 2020.11.23 : 由于 steam 服务器对于 cf-worker 访问进行限制 （ 见[#10](https://github.com/Rhilip/pt-gen-cfworker/issues/10) ）， 目前服务的 steam 相关资源生成均无法使用。
+
+## 环境变量
+
+通过设置环境变量可以使得 pt-gen-cfworker 能够实现一些额外的功能，当前有以下 环境变量：
+
+| 变量 | 说明 |
+|:---:|:---|
+| `DOUBAN_COOKIE` | 豆瓣Cookie，使得能访问部分登录可见的资源 |
+| `INDIENOVA_COOKIE` | indienova 的 Cookie，见 [#15](https://github.com/Rhilip/pt-gen-cfworker/issues/15) |
 
 ## License
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FRhilip%2Fpt-gen-cfworker.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FRhilip%2Fpt-gen-cfworker?ref=badge_large)
