@@ -46,6 +46,7 @@ API Point：
 
 | 变量 | 说明 |
 |:---:|:---|
+| `AUTHOR` | 用于重写api返回的作者信息 |
 | `DOUBAN_COOKIE` | 豆瓣Cookie，使得能访问部分登录可见的资源 |
 | `INDIENOVA_COOKIE` | indienova 的 Cookie，见 [#15](https://github.com/Rhilip/pt-gen-cfworker/issues/15) |
 
