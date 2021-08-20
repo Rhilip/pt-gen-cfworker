@@ -1,4 +1,4 @@
-import {makeJsonResponse, AUTHOR} from "./lib/common";
+import {makeJsonResponse, AUTHOR, makeJsonRawResponse} from "./lib/common";
 import debug_get_err from "./lib/error";
 
 import {search_douban, gen_douban} from "./lib/douban";
@@ -7,6 +7,8 @@ import {search_bangumi, gen_bangumi} from "./lib/bangumi";
 import {gen_steam} from "./lib/steam";
 import {gen_indienova} from "./lib/indienova";
 import {gen_epic} from "./lib/epic";
+
+/* global APIKEY */
 
 /**
  * Cloudflare Worker entrypoint
@@ -48,6 +50,15 @@ async function handle(event) {
     let uri = new URL(request.url);
 
     try {
+      // 如果设置有 APIKEY 环境变量，则进行检查
+      if (typeof globalThis['APIKEY'] !== 'undefined') {
+        if (uri.searchParams.get('apikey') !== APIKEY) {
+          return makeJsonRawResponse({
+            'error' : 'apikey required.'
+          }, { status: 403 })
+        }
+      }
+
       // 不存在任何请求字段，且在根目录，返回默认页面（HTML）
       if (uri.pathname === '/' && uri.search === '') {
         response = await makeIndexResponse();
