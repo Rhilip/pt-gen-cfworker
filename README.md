@@ -40,7 +40,7 @@ API Point：
 
 > update 2020.11.23 : 由于 steam 服务器对于 cf-worker 访问进行限制 （ 见[#10](https://github.com/Rhilip/pt-gen-cfworker/issues/10) ）， 目前服务的 steam 相关资源生成均无法使用。
 
-## 环境变量
+## 环境变量及 KV 命名空间
 
 通过设置环境变量可以使得 pt-gen-cfworker 能够实现一些额外的功能，当前有以下 环境变量：
 
@@ -48,6 +48,7 @@ API Point：
 |:---:|:---|
 | `AUTHOR` | 用于重写api返回的作者信息 |
 | `APIKEY` | 只允许带有 `&apikey={APIKEY}` 的请求访问资源 |
+| `PT_GEN_STORE` | *KV Storage*，请在 `KV 命名空间绑定` 面板而不是环境变量面板设置！！！ |
 | `DOUBAN_COOKIE` | 豆瓣Cookie，使得能访问部分登录可见的资源 |
 | `INDIENOVA_COOKIE` | indienova 的 Cookie，见 [#15](https://github.com/Rhilip/pt-gen-cfworker/issues/15) |
 

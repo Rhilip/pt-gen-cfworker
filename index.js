@@ -145,7 +145,7 @@ async function handle(event) {
 
         if (response_data) {
           response = makeJsonResponse(response_data)
-          if (globalThis['PT_GEN_STORE']) {
+          if (globalThis['PT_GEN_STORE'] && typeof response_data.error === 'undefined') {
             await PT_GEN_STORE.put(cache_key, JSON.stringify(response_data), {expirationTtl: 86400 * 2})
           }
         }
