@@ -73,13 +73,10 @@ async function handle(event) {
           let source = uri.searchParams.get('source') || 'douban';
           cache_key = `search-${source}-${keywords}`
 
-          /*
-          const cache_data = restoreFromKV(cache_key)
+          const cache_data = await restoreFromKV(cache_key)
           if (cache_data) {
             response_data = cache_data
-          } else
-            */
-          if (support_site_list.includes(source)) {
+          } else if (support_site_list.includes(source)) {
             if (source === 'douban') {
               response_data = await search_douban(keywords)
             } else if (source === 'imdb') {
@@ -119,13 +116,10 @@ async function handle(event) {
           } else {
             cache_key = `info-${site}-${sid}`
 
-            /*
-            const cache_data = restoreFromKV(cache_key)
+            const cache_data = await restoreFromKV(cache_key)
             if (cache_data) {
               response_data = cache_data
-            } else
-              */
-            if (support_site_list.includes(site)) {
+            } else if (support_site_list.includes(site)) {
               // 进入对应资源站点处理流程
               if (site === "douban") {
                 response_data = await gen_douban(sid);
