@@ -50,96 +50,100 @@ async function handle(event) {
     let uri = new URL(request.url);
 
     try {
-      // 如果设置有 APIKEY 环境变量，则进行检查
-      if (typeof globalThis['APIKEY'] !== 'undefined') {
-        if (uri.searchParams.get('apikey') !== APIKEY) {
-          return makeJsonRawResponse({
-            'error' : 'apikey required.'
-          }, { status: 403 })
-        }
-      }
-
       // 不存在任何请求字段，且在根目录，返回默认页面（HTML）
       if (uri.pathname === '/' && uri.search === '') {
         response = await makeIndexResponse();
       }
       // 其他的请求均应视为ajax请求，返回JSON
-      else if (uri.searchParams.get('search')) {
-        // 搜索类（通过PT-Gen代理）
-        let keywords = uri.searchParams.get('search');
-        let source = uri.searchParams.get('source') || 'douban';
-
-        if (support_site_list.includes(source)) {
-          if (source === 'douban') {
-            response = await search_douban(keywords)
-          } else if (source === 'imdb') {
-            response = await search_imdb(keywords)
-          } else if (source === 'bangumi') {
-            response = await search_bangumi(keywords)
-          } else {
-            // 没有对应方法搜索的资源站点
-            response = makeJsonResponse({
-              error: "Miss search function for `source`: " + source + "."
-            });
+      else {
+        // 如果设置有 APIKEY 环境变量，则进行检查
+        if (globalThis['APIKEY']) {
+          if (uri.searchParams.get('apikey') !== APIKEY) {
+            return makeJsonRawResponse({
+              'error' : 'apikey required.'
+            }, { status: 403 })
           }
-        } else {
-          response = makeJsonResponse({
-            error: "Unknown value of key `source`."
-          });
-        }
-      } else {
-        // 内容生成类
-        let site, sid;
-
-        // 请求字段 `&url=` 存在
-        if (uri.searchParams.get("url")) {
-          let url_ = uri.searchParams.get("url");
-          for (let site_ in support_list) {
-            let pattern = support_list[site_];
-            if (url_.match(pattern)) {
-              site = site_;
-              sid = url_.match(pattern)[1];
-              break;
-            }
-          }
-        } else {
-          site = uri.searchParams.get("site");
-          sid = uri.searchParams.get("sid");
         }
 
-        // 如果site和sid不存在的话，提前返回
-        if (site == null || sid == null) {
-          response = makeJsonResponse({
-            error: "Miss key of `site` or `sid` , or input unsupported resource `url`."
-          });
-        } else {
-          if (support_site_list.includes(site)) {
-            // 进入对应资源站点处理流程
-            if (site === "douban") {
-              response = await gen_douban(sid);
-            } else if (site === "imdb") {
-              response = await gen_imdb(sid);
-            } else if (site === "bangumi") {
-              response = await gen_bangumi(sid);
-            } else if (site === "steam") {
-              response = await gen_steam(sid);
-            } else if (site === "indienova") {
-              response = await gen_indienova(sid);
-            } else if (site === "epic") {
-              response = await gen_epic(sid);
+        if (uri.searchParams.get('search')) {
+          // 搜索类（通过PT-Gen代理）
+          let keywords = uri.searchParams.get('search');
+          let source = uri.searchParams.get('source') || 'douban';
+
+          if (support_site_list.includes(source)) {
+            if (source === 'douban') {
+              response = await search_douban(keywords)
+            } else if (source === 'imdb') {
+              response = await search_imdb(keywords)
+            } else if (source === 'bangumi') {
+              response = await search_bangumi(keywords)
             } else {
-              // 没有对应方法的资源站点，（真的会有这种情况吗？
+              // 没有对应方法搜索的资源站点
               response = makeJsonResponse({
-                error: "Miss generate function for `site`: " + site + "."
+                error: "Miss search function for `source`: " + source + "."
               });
             }
           } else {
             response = makeJsonResponse({
-              error: "Unknown value of key `site`."
+              error: "Unknown value of key `source`."
             });
           }
         }
+        else {
+          // 内容生成类
+          let site, sid;
+
+          // 请求字段 `&url=` 存在
+          if (uri.searchParams.get("url")) {
+            let url_ = uri.searchParams.get("url");
+            for (let site_ in support_list) {
+              let pattern = support_list[site_];
+              if (url_.match(pattern)) {
+                site = site_;
+                sid = url_.match(pattern)[1];
+                break;
+              }
+            }
+          } else {
+            site = uri.searchParams.get("site");
+            sid = uri.searchParams.get("sid");
+          }
+
+          // 如果site和sid不存在的话，提前返回
+          if (site == null || sid == null) {
+            response = makeJsonResponse({
+              error: "Miss key of `site` or `sid` , or input unsupported resource `url`."
+            });
+          } else {
+            if (support_site_list.includes(site)) {
+              // 进入对应资源站点处理流程
+              if (site === "douban") {
+                response = await gen_douban(sid);
+              } else if (site === "imdb") {
+                response = await gen_imdb(sid);
+              } else if (site === "bangumi") {
+                response = await gen_bangumi(sid);
+              } else if (site === "steam") {
+                response = await gen_steam(sid);
+              } else if (site === "indienova") {
+                response = await gen_indienova(sid);
+              } else if (site === "epic") {
+                response = await gen_epic(sid);
+              } else {
+                // 没有对应方法的资源站点，（真的会有这种情况吗？
+                response = makeJsonResponse({
+                  error: "Miss generate function for `site`: " + site + "."
+                });
+              }
+            } else {
+              response = makeJsonResponse({
+                error: "Unknown value of key `site`."
+              });
+            }
+          }
+        }
       }
+
 
       // 添加缓存，此处如果response如果为undefined的话会抛出错误
       event.waitUntil(cache.put(request, response.clone()));
