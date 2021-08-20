@@ -4,7 +4,7 @@
     "description": "PT-Gen on Cloudflare Worker",
     "main": "index.js",
     "scripts": {
-        "build": "warngler build",
+        "build": "wrangler build",
         "preview": "wrangler preview",
         "publish": "wrangler publish"
     },
