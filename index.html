@@ -163,11 +163,6 @@
         }
       }
 
-      function startFunc() {
-        gen_help.hide();
-        gen_out.show();
-      }
-
       function completeFunc() {
         query_btn.enable();
       }
@@ -177,9 +172,10 @@
         alert("空字符，请检查输入");
         completeFunc();
       } else if (/^http/.test(input_value)) {
-        baseParams.url = input_value;
+        gen_help.hide();
+        gen_out.show();
 
-        startFunc();
+        baseParams.url = input_value;
         $.getJSON('/', baseParams)
           .success(function (data) {
             movie_info.val(data["success"] === false ? data["error"] : data["format"]);
@@ -187,10 +183,11 @@
           .fail(failedFunc)
           .complete(completeFunc);
       } else if (input_btn.val().length > 0) {
+        gen_help.show();
+        gen_out.hide();
+
         baseParams.search = input_value;
         baseParams.source = $('#search_source_val').val();
-
-        startFunc();
         $.getJSON('/', baseParams)
           .success(function (data) {
             let subjects = data.data;
