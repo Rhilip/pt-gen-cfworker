@@ -1,4 +1,4 @@
-import {makeJsonResponse, AUTHOR, makeJsonRawResponse} from "./lib/common";
+import {makeJsonResponse, AUTHOR, makeJsonRawResponse, restoreFromKV} from "./lib/common";
 import debug_get_err from "./lib/error";
 
 import {search_douban, gen_douban} from "./lib/douban";
@@ -8,7 +8,7 @@ import {gen_steam} from "./lib/steam";
 import {gen_indienova} from "./lib/indienova";
 import {gen_epic} from "./lib/epic";
 
-/* global APIKEY */
+/* global APIKEY, PT_GEN_STORE */
 
 /**
  * Cloudflare Worker entrypoint
@@ -50,6 +50,7 @@ async function handle(event) {
     let uri = new URL(request.url);
 
     try {
+      let cache_key;
       // 不存在任何请求字段，且在根目录，返回默认页面（HTML）
       if (uri.pathname === '/' && uri.search === '') {
         response = await makeIndexResponse();
@@ -60,36 +61,36 @@ async function handle(event) {
         if (globalThis['APIKEY']) {
           if (uri.searchParams.get('apikey') !== APIKEY) {
             return makeJsonRawResponse({
-              'error' : 'apikey required.'
-            }, { status: 403 })
+              'error': 'apikey required.'
+            }, {status: 403})
           }
         }
 
+        let response_data;
         if (uri.searchParams.get('search')) {
           // 搜索类（通过PT-Gen代理）
           let keywords = uri.searchParams.get('search');
           let source = uri.searchParams.get('source') || 'douban';
+          cache_key = `search-${source}-${keywords}`
 
-          if (support_site_list.includes(source)) {
+          const cache_data = restoreFromKV(cache_key)
+          if (cache_data) {
+            response_data = cache_data
+          } else if (support_site_list.includes(source)) {
             if (source === 'douban') {
-              response = await search_douban(keywords)
+              response_data = await search_douban(keywords)
             } else if (source === 'imdb') {
-              response = await search_imdb(keywords)
+              response_data = await search_imdb(keywords)
             } else if (source === 'bangumi') {
-              response = await search_bangumi(keywords)
+              response_data = await search_bangumi(keywords)
             } else {
               // 没有对应方法搜索的资源站点
-              response = makeJsonResponse({
-                error: "Miss search function for `source`: " + source + "."
-              });
+              response_data = {error: "Miss search function for `source`: " + source + "."}
             }
           } else {
-            response = makeJsonResponse({
-              error: "Unknown value of key `source`."
-            });
+            response_data = {error: "Unknown value of key `source`."};
           }
-        }
-        else {
+        } else {
           // 内容生成类
           let site, sid;
 
@@ -111,35 +112,41 @@ async function handle(event) {
 
           // 如果site和sid不存在的话，提前返回
           if (site == null || sid == null) {
-            response = makeJsonResponse({
-              error: "Miss key of `site` or `sid` , or input unsupported resource `url`."
-            });
+            response_data = {error: "Miss key of `site` or `sid` , or input unsupported resource `url`."};
           } else {
-            if (support_site_list.includes(site)) {
+            cache_key = `info-${site}-${sid}`
+
+            const cache_data = restoreFromKV(cache_key)
+            if (cache_data) {
+              response_data = cache_data
+            } else if (support_site_list.includes(site)) {
               // 进入对应资源站点处理流程
               if (site === "douban") {
-                response = await gen_douban(sid);
+                response_data = await gen_douban(sid);
               } else if (site === "imdb") {
-                response = await gen_imdb(sid);
+                response_data = await gen_imdb(sid);
               } else if (site === "bangumi") {
-                response = await gen_bangumi(sid);
+                response_data = await gen_bangumi(sid);
               } else if (site === "steam") {
-                response = await gen_steam(sid);
+                response_data = await gen_steam(sid);
               } else if (site === "indienova") {
-                response = await gen_indienova(sid);
+                response_data = await gen_indienova(sid);
               } else if (site === "epic") {
-                response = await gen_epic(sid);
+                response_data = await gen_epic(sid);
               } else {
                 // 没有对应方法的资源站点，（真的会有这种情况吗？
-                response = makeJsonResponse({
-                  error: "Miss generate function for `site`: " + site + "."
-                });
+                response_data = {error: "Miss generate function for `site`: " + site + "."};
               }
             } else {
-              response = makeJsonResponse({
-                error: "Unknown value of key `site`."
-              });
+              response_data = {error: "Unknown value of key `site`."};
             }
+          }
+        }
+
+        if (response_data) {
+          response = makeJsonResponse(response_data)
+          if (globalThis['PT_GEN_STORE']) {
+            await PT_GEN_STORE.put(cache_key, JSON.stringify(response_data), {expirationTtl: 86400 * 2})
           }
         }
       }
