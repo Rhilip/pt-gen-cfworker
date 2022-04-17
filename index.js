@@ -7,6 +7,7 @@ import {search_bangumi, gen_bangumi} from "./lib/bangumi";
 import {gen_steam} from "./lib/steam";
 import {gen_indienova} from "./lib/indienova";
 import {gen_epic} from "./lib/epic";
+import page from './index.html';
 
 /* global APIKEY, PT_GEN_STORE */
 
@@ -196,13 +197,9 @@ function handleOptions(request) {
 }
 
 async function makeIndexResponse() {
-  return new Response(INDEX, {
+  return new Response(page, {
     headers: {
       'Content-Type': 'text/html'
     },
   });
 }
-
-const INDEX = `
-INDEX_HTML_REPLACE
-`;

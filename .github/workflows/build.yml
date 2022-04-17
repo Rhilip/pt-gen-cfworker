@@ -21,7 +21,6 @@ jobs:
       - name: Publish to Cloudflare
         run: |
           echo '${{ secrets.WRANGLER }}' > wrangler.toml
-          sed -e '/INDEX_HTML_REPLACE/ {' -e 'r index.html' -e 'd' -e '}' -i index.js
           wrangler publish
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
