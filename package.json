@@ -11,7 +11,7 @@
     "author": "Rhilip <rhilipruan@gmail.com>",
     "license": "MIT",
     "dependencies": {
-        "cheerio": "^1.0.0-rc.10",
+        "cheerio": "^1.0.0-rc.12",
         "html2bbcode": "^1.2.6"
     },
     "devDependencies": {
