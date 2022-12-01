@@ -1,4 +1,4 @@
-import {makeJsonResponse, AUTHOR, makeJsonRawResponse, restoreFromKV} from "./lib/common";
+import {AUTHOR, makeJsonResponse, makeJsonRawResponse, restoreFromKV} from "./lib/common";
 import debug_get_err from "./lib/error";
 
 import {search_douban, gen_douban} from "./lib/douban";
@@ -8,8 +8,6 @@ import {gen_steam} from "./lib/steam";
 import {gen_indienova} from "./lib/indienova";
 import {gen_epic} from "./lib/epic";
 import page from './index.html';
-
-/* global APIKEY, PT_GEN_STORE */
 
 /**
  * Cloudflare Worker entrypoint
@@ -59,37 +57,39 @@ async function handle(event) {
       // 其他的请求均应视为ajax请求，返回JSON
       else {
         // 如果设置有 APIKEY 环境变量，则进行检查
-        if (globalThis['APIKEY']) {
-          if (uri.searchParams.get('apikey') !== APIKEY) {
-            return makeJsonRawResponse({
-              'error': 'apikey required.'
-            }, {status: 403})
-          }
+        if (globalThis['APIKEY'] && uri.searchParams.get('apikey') !== globalThis['APIKEY']) {
+          return makeJsonRawResponse({
+            'error': 'apikey required.'
+          }, {status: 403})
         }
 
         let response_data;
         if (uri.searchParams.get('search')) {
-          // 搜索类（通过PT-Gen代理）
-          let keywords = uri.searchParams.get('search');
-          let source = uri.searchParams.get('source') || 'douban';
-          cache_key = `search-${source}-${keywords}`
-
-          const cache_data = await restoreFromKV(cache_key)
-          if (cache_data) {
-            response_data = cache_data
-          } else if (support_site_list.includes(source)) {
-            if (source === 'douban') {
-              response_data = await search_douban(keywords)
-            } else if (source === 'imdb') {
-              response_data = await search_imdb(keywords)
-            } else if (source === 'bangumi') {
-              response_data = await search_bangumi(keywords)
-            } else {
-              // 没有对应方法搜索的资源站点
-              response_data = {error: "Miss search function for `source`: " + source + "."}
-            }
+          if (globalThis['DISABLE_SEARCH']) {
+            response_data = {error: "this ptgen disallow search"};
           } else {
-            response_data = {error: "Unknown value of key `source`."};
+            // 搜索类（通过PT-Gen代理）
+            let keywords = uri.searchParams.get('search');
+            let source = uri.searchParams.get('source') || 'douban';
+            cache_key = `search-${source}-${keywords}`
+
+            const cache_data = await restoreFromKV(cache_key)
+            if (cache_data) {
+              response_data = cache_data
+            } else if (support_site_list.includes(source)) {
+              if (source === 'douban') {
+                response_data = await search_douban(keywords)
+              } else if (source === 'imdb') {
+                response_data = await search_imdb(keywords)
+              } else if (source === 'bangumi') {
+                response_data = await search_bangumi(keywords)
+              } else {
+                // 没有对应方法搜索的资源站点
+                response_data = {error: "Miss search function for `source`: " + source + "."}
+              }
+            } else {
+              response_data = {error: "Unknown value of key `source`."};
+            }
           }
         } else {
           // 内容生成类
@@ -147,7 +147,7 @@ async function handle(event) {
         if (response_data) {
           response = makeJsonResponse(response_data)
           if (globalThis['PT_GEN_STORE'] && typeof response_data.error === 'undefined') {
-            await PT_GEN_STORE.put(cache_key, JSON.stringify(response_data), {expirationTtl: 86400 * 2})
+            await globalThis['PT_GEN_STORE'].put(cache_key, JSON.stringify(response_data), {expirationTtl: 86400 * 2})
           }
         }
       }
