@@ -1,6 +1,6 @@
 # PT-Gen on Cloudflare Worker
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FRhilip%2Fpt-gen-cfworker.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FRhilip%2Fpt-gen-cfworker?ref=badge_shield)
-[![Build Status](https://travis-ci.com/Rhilip/pt-gen-cfworker.svg?branch=master)](https://travis-ci.com/Rhilip/pt-gen-cfworker)
+[![Build Status](https://github.com/Rhilip/pt-gen-cfworker/actions/workflows/build.yml/badge.svg)](https://github.com/Rhilip/pt-gen-cfworker/actions/workflows/build.yml)
 
 基于 [BFDZ/Pt-Gen v0.4.7](https://github.com/BFDZ/PT-Gen/commit/950b85de16d9532e847a0756f165d1b29f09dd31) 改写，
 使之可以直接在Cloudflare Worker上使用。
