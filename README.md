@@ -1,5 +1,7 @@
 > [!NOTE]
-> 本项目已停止维护，对 Cloudflare Worker 版本，建议使用 https://github.com/rabbitwit/PT-Gen-Refactor
+> 本项目已停止维护，你可以使用下面项目作为替代：
+> - https://github.com/YunFeng86/pt-gen-universal
+> - https://github.com/rabbitwit/PT-Gen-Refactor
 
 # PT-Gen on Cloudflare Worker
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FRhilip%2Fpt-gen-cfworker.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FRhilip%2Fpt-gen-cfworker?ref=badge_shield)
